@@ -1,0 +1,25 @@
+{
+  "name": "habit",
+  "version": "2.0.0",
+  "description": "Habit Tracker OS (React 19 + Tailwind v4)",
+  "scripts": {
+    "start": "start open_in_browser.bat",
+    "open": "start open_in_browser.bat",
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build && node sync_react.js",
+    "cap:sync": "node sync_react.js",
+    "test": "node playwright-comprehensive-audit.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}
