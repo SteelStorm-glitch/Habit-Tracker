@@ -8,6 +8,7 @@
     "dev": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build && node sync_react.js",
     "cap:sync": "node sync_react.js",
+    "test:unit": "npm --prefix frontend run test:unit",
     "test": "node playwright-comprehensive-audit.cjs"
   },
   "keywords": [],

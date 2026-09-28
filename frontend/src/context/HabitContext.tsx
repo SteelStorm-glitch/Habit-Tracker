@@ -134,6 +134,37 @@ const DEFAULT_HABITS: Habit[] = [
 ]
 
 const DEFAULT_TASKS: Task[] = [
+  // Completed tasks across the month correlating with habits
+  { id: 't-hist-1', title: 'Утренняя планёрка', category: 'Работа', priority: 'High', dueDate: '2026-09-03', completed: true },
+  { id: 't-hist-2', title: 'Анализ метрик', category: 'Работа', priority: 'Medium', dueDate: '2026-09-03', completed: true },
+  { id: 't-hist-3', title: 'Ревью PR', category: 'Работа', priority: 'Medium', dueDate: '2026-09-03', completed: true },
+  { id: 't-hist-4', title: 'Оплата счетов', category: 'Финансы', priority: 'Low', dueDate: '2026-09-04', completed: true },
+  { id: 't-hist-5', title: 'Дизайн спринт', category: 'Работа', priority: 'High', dueDate: '2026-09-05', completed: true },
+  { id: 't-hist-6', title: 'Созвон с клиентом', category: 'Работа', priority: 'High', dueDate: '2026-09-05', completed: true },
+  { id: 't-hist-7', title: 'Документация API', category: 'Работа', priority: 'Medium', dueDate: '2026-09-05', completed: true },
+  { id: 't-hist-8', title: 'Подготовка отчёта', category: 'Работа', priority: 'Medium', dueDate: '2026-09-07', completed: true },
+  { id: 't-hist-9', title: 'Ревью кода', category: 'Работа', priority: 'High', dueDate: '2026-09-07', completed: true },
+  { id: 't-hist-10', title: 'Синхронизация бэкенда', category: 'Работа', priority: 'High', dueDate: '2026-09-07', completed: true },
+  { id: 't-hist-11', title: 'Апдейт баг-трекера', category: 'Работа', priority: 'Low', dueDate: '2026-09-08', completed: true },
+  { id: 't-hist-12', title: 'Фронтенд рефакторинг', category: 'Работа', priority: 'High', dueDate: '2026-09-10', completed: true },
+  { id: 't-hist-13', title: 'Архитектурный созвон', category: 'Работа', priority: 'High', dueDate: '2026-09-10', completed: true },
+  { id: 't-hist-14', title: 'Тестирование релиза', category: 'Работа', priority: 'Urgent', dueDate: '2026-09-10', completed: true },
+  { id: 't-hist-15', title: 'Проверка почты', category: 'Дом', priority: 'Low', dueDate: '2026-09-11', completed: true },
+  { id: 't-hist-16', title: 'Деплой сервиса', category: 'Работа', priority: 'High', dueDate: '2026-09-12', completed: true },
+  { id: 't-hist-17', title: 'Тесты производительности', category: 'Работа', priority: 'Medium', dueDate: '2026-09-12', completed: true },
+  { id: 't-hist-18', title: 'Спринт демо', category: 'Работа', priority: 'High', dueDate: '2026-09-12', completed: true },
+  { id: 't-hist-19', title: 'Настройка мониторинга', category: 'Работа', priority: 'High', dueDate: '2026-09-14', completed: true },
+  { id: 't-hist-20', title: 'Оптимизация запросов', category: 'Работа', priority: 'Medium', dueDate: '2026-09-14', completed: true },
+  { id: 't-hist-21', title: 'Рефакторинг стора', category: 'Работа', priority: 'High', dueDate: '2026-09-14', completed: true },
+  { id: 't-hist-22', title: 'План на квартал', category: 'Работа', priority: 'High', dueDate: '2026-09-17', completed: true },
+  { id: 't-hist-23', title: 'Обновление зависимостей', category: 'Работа', priority: 'Low', dueDate: '2026-09-17', completed: true },
+  { id: 't-hist-24', title: 'Подготовка релиза', category: 'Работа', priority: 'High', dueDate: '2026-09-17', completed: true },
+  { id: 't-hist-25', title: 'Написание тестов', category: 'Работа', priority: 'Medium', dueDate: '2026-09-19', completed: true },
+  { id: 't-hist-26', title: 'Аудит безопасности', category: 'Работа', priority: 'High', dueDate: '2026-09-19', completed: true },
+  { id: 't-hist-27', title: 'Сборка артефактов', category: 'Работа', priority: 'High', dueDate: '2026-09-19', completed: true },
+  { id: 't-hist-28', title: 'Финальный релиз', category: 'Работа', priority: 'Urgent', dueDate: '2026-09-21', completed: true },
+  { id: 't-hist-29', title: 'Пост-релизный чекап', category: 'Работа', priority: 'High', dueDate: '2026-09-21', completed: true },
+  // Active pending tasks
   { id: 't-1', title: 'Сдать отчёт по проекту', notes: 'Финальная версия с правками', category: 'Работа', priority: 'Urgent', dueDate: '2026-09-21', completed: false },
   { id: 't-2', title: 'Тренировка в зале', category: 'Здоровье', priority: 'High', dueDate: '2026-09-22', completed: false },
   { id: 't-3', title: 'Позвонить в банк', notes: 'Уточнить условия по вкладу', category: 'Финансы', priority: 'High', dueDate: '2026-09-22', completed: false },
@@ -144,6 +175,12 @@ const DEFAULT_TASKS: Task[] = [
 
 const DEFAULT_FINANCES: FinanceState = {
   transactions: [
+    // Friday spending anomalies: Sept 4, Sept 11, Sept 18
+    { id: 'tx-f-1', type: 'expense', amount: 3600, category: 'Еда и рестораны', date: '2026-09-04', note: 'Пятничный ужин' },
+    { id: 'tx-f-2', type: 'expense', amount: 1400, category: 'Развлечения', date: '2026-09-04', note: 'Кино с друзьями' },
+    { id: 'tx-f-3', type: 'expense', amount: 4200, category: 'Еда и рестораны', date: '2026-09-11', note: 'Пятничные посиделки' },
+    { id: 'tx-f-4', type: 'expense', amount: 3800, category: 'Еда и рестораны', date: '2026-09-18', note: 'Доставка и бар' },
+    // Regular days
     { id: 'tx-1', type: 'income', amount: 3000, category: 'Подарок', date: '2026-09-20', note: 'Володя' },
     { id: 'tx-2', type: 'income', amount: 5000, category: 'Подарок', date: '2026-09-20', note: 'Бабуля Ира' },
     { id: 'tx-3', type: 'income', amount: 5000, category: 'Подарок', date: '2026-09-20', note: 'Тётя Света' },
@@ -159,6 +196,31 @@ const DEFAULT_FINANCES: FinanceState = {
     { id: 'sub-3', name: 'Telegram Premium', cost: 299, cycle: 'monthly', billingDay: 1, icon: '⭐' }
   ]
 }
+
+const DEFAULT_CHECKINS: DailyCheckIn[] = [
+  { date: '2026-09-01', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-02', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-03', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-04', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-05', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-06', mood: 3, energy: 3, updatedAt: 1726000000000 },
+  { date: '2026-09-07', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-08', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-09', mood: 3, energy: 3, updatedAt: 1726000000000 },
+  { date: '2026-09-10', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-11', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-12', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-13', mood: 3, energy: 3, updatedAt: 1726000000000 },
+  { date: '2026-09-14', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-15', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-16', mood: 3, energy: 3, updatedAt: 1726000000000 },
+  { date: '2026-09-17', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-18', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-19', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-20', mood: 4, energy: 4, updatedAt: 1726000000000 },
+  { date: '2026-09-21', mood: 5, energy: 5, updatedAt: 1726000000000 },
+  { date: '2026-09-22', mood: 4, energy: 4, updatedAt: 1726000000000 }
+]
 
 const AI_TASK_BANK: Record<string, string[]> = {
   'Здоровье': [
@@ -499,9 +561,9 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [checkIns, setCheckIns] = useState<DailyCheckIn[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CHECKINS)
-      return saved ? JSON.parse(saved) : []
+      return saved ? JSON.parse(saved) : DEFAULT_CHECKINS
     } catch {
-      return []
+      return DEFAULT_CHECKINS
     }
   })
 
@@ -1357,17 +1419,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setHabits(DEFAULT_HABITS)
     setTasks(DEFAULT_TASKS)
     setFinances(DEFAULT_FINANCES)
-    const demoCheckIns: DailyCheckIn[] = []
-    for (let i = 1; i <= 22; i++) {
-      const d = String(i).padStart(2, '0')
-      demoCheckIns.push({
-        date: `2026-09-${d}`,
-        mood: i % 3 === 0 ? 5 : 4,
-        energy: i % 2 === 0 ? 4 : 3,
-        updatedAt: Date.now()
-      })
-    }
-    setCheckIns(demoCheckIns)
+    setCheckIns(DEFAULT_CHECKINS)
   }
 
   const wipeAllDevData = (): boolean => {

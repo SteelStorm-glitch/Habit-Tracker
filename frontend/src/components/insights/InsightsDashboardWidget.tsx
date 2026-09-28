@@ -52,7 +52,7 @@ export const InsightsDashboardWidget: React.FC = () => {
             <InsightCard key={insight.id} insight={insight} />
           ))}
         </div>
-      ) : (
+      ) : currentDays < requiredDays ? (
         <div className="p-5 rounded-2xl glass-card border border-white/5 space-y-3">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -85,6 +85,22 @@ export const InsightsDashboardWidget: React.FC = () => {
                 boxShadow: '0 0 10px rgba(129, 140, 248, 0.5)'
               }}
             />
+          </div>
+        </div>
+      ) : (
+        <div className="p-5 rounded-2xl glass-card border border-white/5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="size-10 rounded-xl bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center text-indigo-400 shrink-0">
+              <Brain className="size-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">
+                История собрана ({currentDays} дн.)
+              </h3>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Локальный алгоритм анализирует активность. Новые инсайты появятся автоматически при фиксации выраженных взаимосвязей (от 20% эффекта).
+              </p>
+            </div>
           </div>
         </div>
       )}

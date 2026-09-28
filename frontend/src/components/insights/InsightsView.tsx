@@ -62,8 +62,8 @@ export const InsightsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Telemetry History Progress (if < 14 days or info banner) */}
-      {insights.length === 0 && (
+      {/* Telemetry History Progress (if < 14 days) */}
+      {currentDays < requiredDays && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
