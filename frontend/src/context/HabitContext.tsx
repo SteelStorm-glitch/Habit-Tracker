@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react'
 import type {
   Habit,
   Task,
@@ -11,7 +11,11 @@ import type {
   AiMessage,
   GamificationState,
   XpEvent,
-  AiSettings
+  AiSettings,
+  DailyCheckIn,
+  CrossModuleInsight,
+  InsightsResult,
+  OgonyokCompactState
 } from '@/types/habit'
 import {
   auth,
@@ -32,6 +36,9 @@ import {
   translateFirebaseError
 } from '@/lib/firebaseAuthService'
 import { generateGeminiResponse, GEMINI_API_KEY, cleanAiResponse } from '@/lib/gemini'
+import { computeCrossModuleInsights } from '@/lib/insights/insightsEngine'
+import { buildOgonyokCompactState, buildOgonyokSystemPrompt } from '@/lib/coach/ogonyokContext'
+import { getOrGenerateProactiveDailyMessage, type ProactiveAdvice } from '@/lib/coach/proactiveMessage'
 
 const STORAGE_KEYS = {
   HABITS: 'habit_app_habits',
@@ -42,6 +49,7 @@ const STORAGE_KEYS = {
   DEV_MODE: 'habit_app_dev_mode',
   AUTH_USER: 'habit_app_auth_user',
   AI_SETTINGS: 'habit_app_ai_settings',
+  CHECKINS: 'habit_app_checkins',
 }
 
 const VALID_DEV_CODES = ['1337', 'DEV', 'DEVELOPER', 'ADMIN', '7777']
@@ -203,8 +211,17 @@ export interface HabitContextType {
   tasks: Task[]
   finances: FinanceState
   prefs: UserPrefs
-  activeTab: 'habits' | 'tasks' | 'finance' | 'developer' | 'profile'
-  setActiveTab: (tab: 'habits' | 'tasks' | 'finance' | 'developer' | 'profile') => void
+  activeTab: 'habits' | 'tasks' | 'finance' | 'insights' | 'developer' | 'profile'
+  setActiveTab: (tab: 'habits' | 'tasks' | 'finance' | 'insights' | 'developer' | 'profile') => void
+
+  // Cross-Module Insights & Coach Ogonyok
+  checkIns: DailyCheckIn[]
+  addDailyCheckIn: (checkIn: Omit<DailyCheckIn, 'updatedAt'>) => void
+  insightsResult: InsightsResult
+  ogonyokState: OgonyokCompactState
+  proactiveAdvice: ProactiveAdvice | null
+  refreshProactiveAdvice: () => void
+  discussInsightInChat: (insight: CrossModuleInsight) => void
   isSettingsOpen: boolean
   setIsSettingsOpen: (open: boolean) => void
   isAddIncomeOpen: boolean
@@ -295,7 +312,7 @@ export interface HabitContextType {
 const HabitContext = createContext<HabitContextType | undefined>(undefined)
 
 export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [activeTab, setActiveTab] = useState<'habits' | 'tasks' | 'finance' | 'developer' | 'profile'>('habits')
+  const [activeTab, setActiveTab] = useState<'habits' | 'tasks' | 'finance' | 'insights' | 'developer' | 'profile'>('habits')
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isAddIncomeOpen, setIsAddIncomeOpen] = useState(false)
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
@@ -473,6 +490,86 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const diffDays = Math.round((target.getTime() - base.getTime()) / (1000 * 60 * 60 * 24))
       setVirtualDateOffsetDays(diffDays)
     }
+  }
+
+  // ───────────────────────────────────────────────
+  // Milestone 1: Daily Check-Ins & Insights Engine
+  // ───────────────────────────────────────────────
+
+  const [checkIns, setCheckIns] = useState<DailyCheckIn[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.CHECKINS)
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CHECKINS, JSON.stringify(checkIns))
+    } catch {}
+  }, [checkIns])
+
+  const addDailyCheckIn = (data: Omit<DailyCheckIn, 'updatedAt'>) => {
+    const entry: DailyCheckIn = {
+      ...data,
+      updatedAt: Date.now()
+    }
+    setCheckIns(prev => {
+      const filtered = prev.filter(c => c.date !== data.date)
+      return [entry, ...filtered]
+    })
+  }
+
+  // Cross-Module Insights evaluation
+  const insightsResult: InsightsResult = useMemo(() => {
+    return computeCrossModuleInsights(habits, tasks, finances.transactions, checkIns)
+  }, [habits, tasks, finances.transactions, checkIns])
+
+  // Data-Aware Coach Ogonyok compact telemetry (< 400 tokens)
+  const ogonyokState: OgonyokCompactState = useMemo(() => {
+    const todayStr = getSimulatedNow().toISOString().split('T')[0]
+    return buildOgonyokCompactState(
+      habits,
+      tasks,
+      finances,
+      gamification || getInitialGamification(todayStr),
+      checkIns,
+      insightsResult.insights,
+      getSimulatedNow()
+    )
+  }, [habits, tasks, finances, gamification, checkIns, insightsResult.insights, virtualDateOffsetDays])
+
+  // Daily proactive message from Ogonyok
+  const [proactiveAdvice, setProactiveAdvice] = useState<ProactiveAdvice | null>(() => {
+    const todayStr = getSimulatedNow().toISOString().split('T')[0]
+    const fallbackOgonyok = buildOgonyokCompactState(
+      habits,
+      tasks,
+      finances,
+      gamification || getInitialGamification(todayStr),
+      checkIns,
+      insightsResult.insights,
+      getSimulatedNow()
+    )
+    return getOrGenerateProactiveDailyMessage(fallbackOgonyok, insightsResult.insights, getSimulatedNow())
+  })
+
+  useEffect(() => {
+    const advice = getOrGenerateProactiveDailyMessage(ogonyokState, insightsResult.insights, getSimulatedNow())
+    setProactiveAdvice(advice)
+  }, [ogonyokState, insightsResult.insights])
+
+  const refreshProactiveAdvice = () => {
+    const advice = getOrGenerateProactiveDailyMessage(ogonyokState, insightsResult.insights, getSimulatedNow())
+    setProactiveAdvice(advice)
+  }
+
+  const discussInsightInChat = (insight: CrossModuleInsight) => {
+    setIsAiDrawerOpen(true)
+    const prompt = `Привет! Расскажи подробнее про выявленный инсайт: «${insight.claim}». Что мне предпринять сегодня?`
+    sendAiMessage(prompt)
   }
 
   // ═══════════════════════════════════════════
@@ -824,6 +921,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (cloudData.finances) setFinances(cloudData.finances)
         if (cloudData.gamification) setGamification(cloudData.gamification)
         if (cloudData.prefs) setPrefs(prev => ({ ...prev, ...cloudData.prefs }))
+        if (cloudData.checkIns && cloudData.checkIns.length > 0) setCheckIns(cloudData.checkIns)
         setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
         return true
       }
@@ -835,6 +933,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         finances,
         gamification: gamification || getInitialGamification(todayStr),
         prefs,
+        checkIns,
         updatedAt: new Date().toISOString()
       })
       if (ok) {
@@ -935,6 +1034,8 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         text: m.text
       }))
 
+      const ogonyokSysPrompt = buildOgonyokSystemPrompt(ogonyokState)
+
       const result = await generateGeminiResponse(
         text,
         {
@@ -946,7 +1047,8 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           balance: inc - exp
         },
         history,
-        aiSettings.model
+        aiSettings.model,
+        ogonyokSysPrompt
       )
 
       let replyText = cleanAiResponse(result.text)
@@ -1255,10 +1357,22 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setHabits(DEFAULT_HABITS)
     setTasks(DEFAULT_TASKS)
     setFinances(DEFAULT_FINANCES)
+    const demoCheckIns: DailyCheckIn[] = []
+    for (let i = 1; i <= 22; i++) {
+      const d = String(i).padStart(2, '0')
+      demoCheckIns.push({
+        date: `2026-09-${d}`,
+        mood: i % 3 === 0 ? 5 : 4,
+        energy: i % 2 === 0 ? 4 : 3,
+        updatedAt: Date.now()
+      })
+    }
+    setCheckIns(demoCheckIns)
   }
 
   const wipeAllDevData = (): boolean => {
     clearAllData()
+    setCheckIns([])
     return true
   }
 
@@ -1276,6 +1390,12 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       isAddHabitOpen, setIsAddHabitOpen,
       isAddTaskOpen, setIsAddTaskOpen,
       isAddSubOpen, setIsAddSubOpen,
+
+      // Cross-Module Insights & Coach Ogonyok
+      checkIns, addDailyCheckIn,
+      insightsResult, ogonyokState,
+      proactiveAdvice, refreshProactiveAdvice,
+      discussInsightInChat,
 
       // Auth & Cloud Sync
       currentUser, firebaseConfig, lastSyncTime,

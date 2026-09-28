@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { Habit, Task, FinanceState, GamificationState, CrossModuleInsight } from '@/types/habit'
 import {
   buildOgonyokCompactState,
@@ -163,5 +163,23 @@ describe('Coach Ogonyok Context & Advice', () => {
     expect(advice.type).toBe('insight')
     expect(advice.message).toContain(mockInsight.claim)
     expect(advice.ctaPrompt).toContain(mockInsight.claim)
+  })
+
+  it('getOrGenerateProactiveDailyMessage returns message and caches it', () => {
+    const refDate = new Date(2026, 8, 22)
+    const state = buildOgonyokCompactState(
+      mockHabits,
+      mockTasks,
+      mockFinance,
+      mockGamification,
+      [],
+      [mockInsight],
+      refDate
+    )
+
+    const advice = getOrGenerateProactiveDailyMessage(state, [mockInsight], refDate)
+    expect(advice).toBeDefined()
+    expect(advice.date).toBe('2026-09-22')
+    expect(advice.message).toContain(mockInsight.claim)
   })
 })

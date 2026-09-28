@@ -135,9 +135,10 @@ export async function generateGeminiResponse(
   userPrompt: string,
   context?: GeminiContext,
   history?: { role: 'user' | 'model'; text: string }[],
-  preferredModel?: string
+  preferredModel?: string,
+  customSystemInstruction?: string
 ): Promise<{ text: string; modelUsed: string; fallbackOccurred?: boolean }> {
-  const systemInstruction = buildSystemInstruction(context)
+  const systemInstruction = customSystemInstruction || buildSystemInstruction(context)
 
   // Construct conversation contents (must start with 'user' role for Gemini API)
   const contents: Array<{ role: string; parts: Array<{ text: string }> }> = []

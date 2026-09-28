@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { Habit, Task, Transaction, DailyCheckIn } from '@/types/habit'
-import { buildDayMatrix, formatDateKey } from '../matrixBuilder'
+import { buildDayMatrix } from '../matrixBuilder'
 import { computeCrossModuleInsights } from '../insightsEngine'
 import {
   evaluateHabitTaskProductivity,
