@@ -31,7 +31,7 @@ import {
   getInitialGamification,
   translateFirebaseError
 } from '@/lib/firebaseAuthService'
-import { generateGeminiResponse, GEMINI_API_KEY } from '@/lib/gemini'
+import { generateGeminiResponse, GEMINI_API_KEY, cleanAiResponse } from '@/lib/gemini'
 
 const STORAGE_KEYS = {
   HABITS: 'habit_app_habits',
@@ -949,7 +949,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         aiSettings.model
       )
 
-      let replyText = result.text
+      let replyText = cleanAiResponse(result.text)
       if (result.fallbackOccurred && result.modelUsed) {
         replyText += `\n\n⚡ _(Отвечено через резервную модель ${result.modelUsed}, так как выбранная была временно перегружена)_`
       }

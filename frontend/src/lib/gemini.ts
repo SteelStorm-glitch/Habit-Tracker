@@ -77,6 +77,7 @@ function buildSystemInstruction(context?: GeminiContext): string {
     '   - @google — кратко опиши научный факт или исследование с тегом @google.',
     '   - @notion — предложи структуру чек-листа или трекера с тегом @notion.',
     '   - @habits, @tasks, @finance — ссылайся на контекст приложения.',
+    '5. СТРОЖАЙШИЙ ЗАПРЕТ НА ВЫВОД МЫСЛЕЙ (NO CHAIN OF THOUGHT): Отвечай СРАЗУ готовым текстом для пользователя на русском. Категорически ЗАПРЕЩЕНО выводить внутренние черновики, системные промпты, шаги мышления, фразы вроде "User says:", "Role:", "Goal:", "Drafting", "Self-correction", "Constraints:". Только чистый, вежливый ответ.',
   ]
 
   if (context) {
@@ -89,6 +90,42 @@ function buildSystemInstruction(context?: GeminiContext): string {
   }
 
   return parts.join('\n')
+}
+
+/**
+ * Strips model internal reasoning, thinking tokens, and self-correction leaks.
+ */
+export function cleanAiResponse(text: string): string {
+  if (!text) return ''
+  let cleaned = text.trim()
+
+  // 1. If text contains explicit drafting marker, take everything after it
+  const draftRegex = /(?:\*+Drafting final response:\*+|\*+Final response:\*+|\*+Response:\*+|\*+Actual response:\*+)([\s\S]+)/i
+  const draftMatch = cleaned.match(draftRegex)
+  if (draftMatch && draftMatch[1] && draftMatch[1].trim()) {
+    cleaned = draftMatch[1].trim()
+  }
+
+  // 2. Remove parenthetical model inner monologues like (Wait, the previous...)
+  cleaned = cleaned.replace(/^\s*\((?:Wait|Note|Self-correction|Thinking)[\s\S]*?\)\s*$/gmi, '')
+
+  // 3. If response starts with English meta reasoning bullets (* User, * Role, * Goal, * Current context, etc.),
+  // find where the real Russian/conversational response actually starts
+  if (cleaned.startsWith('*') || cleaned.startsWith('-') || cleaned.startsWith('(')) {
+    const conversationalStartRegex = /(?:\n\s*(?:Привет|Здравствуйте|Рад |Давай |Отличн|Вот |Как |Твой |Приветствую|Добр)[\s\S]*)/i
+    const convMatch = cleaned.match(conversationalStartRegex)
+    if (convMatch && convMatch[0]) {
+      cleaned = convMatch[0].trim()
+    }
+  }
+
+  // 4. Remove any residual meta bullets (*Greeting:*, *Status Summary:*, *Engagement:*, etc.)
+  cleaned = cleaned.replace(/^\s*\*\s*\*(?:Greeting|Status Summary|Engagement|Call to action|Status Check):\*\s*/gmi, '')
+
+  // 5. Clean up trailing meta verification check marks like * Brief? Yes. * Structured? Yes.
+  cleaned = cleaned.replace(/\n\s*\*\s*(?:Brief\?|Structured\?|Friendly\?|Russian\?|Tags used correctly\?)[\s\S]*$/gi, '')
+
+  return cleaned.trim()
 }
 
 /**
@@ -150,7 +187,7 @@ export async function generateGeminiResponse(
           },
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 600,
+            maxOutputTokens: 2048,
           },
         }),
       })
@@ -159,10 +196,13 @@ export async function generateGeminiResponse(
 
       if (response.ok && data.candidates && data.candidates[0]?.content?.parts) {
         const parts = data.candidates[0].content.parts
-        const answerPart = parts.find((p: { thought?: boolean; text?: string }) => !p.thought && p.text) || parts[parts.length - 1]
-        if (answerPart?.text) {
+        const answerPart = parts.find((p: { thought?: boolean; text?: string }) => !p.thought && p.text)
+        const rawText = answerPart?.text || (parts.length > 0 ? parts[parts.length - 1]?.text : '') || ''
+        const cleanedText = cleanAiResponse(rawText)
+
+        if (cleanedText) {
           return {
-            text: answerPart.text.trim(),
+            text: cleanedText,
             modelUsed: model,
             fallbackOccurred: preferredModel ? model !== preferredModel : i > 0,
           }
