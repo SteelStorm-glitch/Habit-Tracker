@@ -6,14 +6,15 @@ import {
   Settings,
   HelpCircle,
   User,
-  Wallet
+  Wallet,
+  Brain
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useHabitStore } from '@/context/HabitContext'
 import { VerticalMenuItem, VerticalTooltip } from '@/components/ui/skiper-ui/skiper98'
 import { useTranslation } from '@/locales'
 
-type NavTabType = 'habits' | 'tasks' | 'finance' | 'developer' | 'profile'
+type NavTabType = 'habits' | 'tasks' | 'finance' | 'insights' | 'developer' | 'profile'
 
 interface NavItem {
   id: NavTabType
@@ -56,6 +57,12 @@ export const Sidebar: React.FC = () => {
       label: t.nav.finance,
       icon: Wallet,
       color: '#f59e0b' // amber
+    },
+    {
+      id: 'insights',
+      label: t.nav.insights,
+      icon: Brain,
+      color: '#a855f7' // purple
     }
   ]
 

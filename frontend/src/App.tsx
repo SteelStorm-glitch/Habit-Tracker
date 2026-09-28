@@ -7,6 +7,7 @@ import { TasksView } from '@/components/tasks/TasksView'
 import { FinanceView } from '@/components/finance/FinanceView'
 import { DeveloperView } from '@/components/developer/DeveloperView'
 import { ProfileView } from '@/components/profile/ProfileView'
+import { InsightsView } from '@/components/insights/InsightsView'
 import { TransactionModals } from '@/components/finance/TransactionModals'
 import { SubscriptionModal } from '@/components/finance/SubscriptionModal'
 import { HabitModal } from '@/components/habits/HabitModal'
@@ -38,6 +39,7 @@ const MainContent: React.FC = () => {
           {activeTab === 'habits' && <HabitsView />}
           {activeTab === 'tasks' && <TasksView />}
           {activeTab === 'finance' && <FinanceView />}
+          {activeTab === 'insights' && <InsightsView />}
           {activeTab === 'developer' && <DeveloperView />}
           {activeTab === 'profile' && <ProfileView />}
         </div>

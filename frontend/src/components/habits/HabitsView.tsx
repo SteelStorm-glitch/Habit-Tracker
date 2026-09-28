@@ -1,6 +1,8 @@
 import React from 'react'
 import { Plus, Check, Trash2, Flame, TrendingUp, Zap } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { ProactiveCoachBanner } from '@/components/coach/ProactiveCoachBanner'
+import { InsightsDashboardWidget } from '@/components/insights/InsightsDashboardWidget'
 
 export const HabitsView: React.FC = () => {
   const { habits, toggleHabitDay, deleteHabit, setIsAddHabitOpen, prefs, getSimulatedNow, gamification } = useHabitStore()
@@ -56,6 +58,9 @@ export const HabitsView: React.FC = () => {
           <span>Новая привычка</span>
         </button>
       </div>
+
+      {/* Proactive Ogonyok Daily Advice Banner */}
+      <ProactiveCoachBanner />
 
       {/* Overview Grid: Today Card + Month Stats */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -194,6 +199,9 @@ export const HabitsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Cross-Module Insights Widget */}
+      <InsightsDashboardWidget />
 
       {/* Habit Matrix Table Card */}
       <div id="tour-habits-matrix" className="rounded-2xl glass-card overflow-hidden">

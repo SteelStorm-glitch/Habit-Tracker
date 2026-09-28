@@ -16,7 +16,8 @@ import {
   Check,
   Zap,
   Crown,
-  ShieldCheck
+  ShieldCheck,
+  Flame
 } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
 import { AVAILABLE_MODELS } from '@/lib/gemini'
@@ -84,13 +85,13 @@ export const AiDrawer: React.FC = () => {
         {/* Header with Interactive Model Selector */}
         <SheetHeader className="px-5 py-3.5 border-b border-white/10 flex flex-row items-center justify-between bg-white/[0.02] relative z-20">
           <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.35)] shrink-0">
-              <Sparkles className="size-4 animate-pulse" />
+            <div className="size-8 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-600/30 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.35)] shrink-0">
+              <Flame className="size-4 animate-streak-fire" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <SheetTitle className="text-base font-bold text-white tracking-tight">
-                  AI Советник
+                  Коуч «Огонёк»
                 </SheetTitle>
 
                 {/* Model Selector Pill / Dropdown Trigger */}
@@ -343,7 +344,7 @@ export const AiDrawer: React.FC = () => {
                   </div>
 
                   <span className="text-[11px] font-medium text-purple-200/90 tracking-wide select-none flex items-center gap-1">
-                    <span>Gemini думает</span>
+                    <span>Огонёк думает</span>
                     <span className="inline-flex">
                       <span className="animate-pulse delay-0">.</span>
                       <span className="animate-pulse delay-150">.</span>
