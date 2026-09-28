@@ -35,6 +35,7 @@ export const ru = {
     habits: 'Привычки',
     tasks: 'Задачи',
     finance: 'Финансы',
+    insights: 'Инсайты',
     profile: 'Мой профиль',
     settings: 'Настройки',
     aiAssistant: 'AI Ассистент',
@@ -333,5 +334,37 @@ export const ru = {
     sendBtn: 'Отправить',
     generateTaskBtn: 'Сгенерировать задачу от AI',
     disclaimer: 'AI работает локально или через выбранного провайдера API.',
+  },
+
+  // Кросс-модульные инсайты (InsightsView & Widget)
+  insights: {
+    title: 'Инсайты и закономерности',
+    subtitle: 'Анализ скрытых связей между привычками, задачами и финансами',
+    widgetTitle: 'Кросс-модульные инсайты',
+    widgetSubtitle: 'Взаимосвязь привычек, задач и расходов',
+    viewAll: 'Все инсайты',
+    discussWithOgonyok: 'Спросить Огонька',
+    needMoreDataTitle: 'Идёт сбор данных',
+    needMoreDataDesc: (current: number, required: number) => `Системе требуется минимум ${required} дней истории для точных корреляций. Зафиксировано: ${current} из ${required} дн.`,
+    historyProgress: (current: number, required: number) => `${current} из ${required} дней`,
+    tabs: {
+      all: 'Все сферы',
+      productivity: 'Продуктивность',
+      spending: 'Траты',
+      discipline: 'Дисциплина',
+      wellbeing: 'Самочувствие',
+    },
+    emptyCategory: 'В этой категории пока нет ярко выраженных корреляций',
+    emptyAll: 'Продолжайте отмечать привычки, задачи и расходы — система автоматически выявит скрытые связи.',
+  },
+
+  // Умный коуч «Огонёк»
+  coach: {
+    name: 'Огонёк',
+    badge: 'Персональный коуч',
+    dailyGlanceTitle: 'Совет дня от Огонька',
+    discussBtn: 'Обсудить с Огоньком',
+    thinking: 'Огонёк думает...',
+    quickQuestions: 'Быстрые вопросы:',
   }
 } as const

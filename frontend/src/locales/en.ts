@@ -33,6 +33,7 @@ export const en = {
     habits: 'Habits',
     tasks: 'Tasks',
     finance: 'Finance',
+    insights: 'Insights',
     profile: 'My Profile',
     settings: 'Settings',
     aiAssistant: 'AI Assistant',
@@ -331,5 +332,37 @@ export const en = {
     sendBtn: 'Send',
     generateTaskBtn: 'Generate Task from AI',
     disclaimer: 'AI runs locally or via selected API provider.',
+  },
+
+  // Cross-Module Insights
+  insights: {
+    title: 'Insights & Correlations',
+    subtitle: 'Uncovering patterns between your habits, tasks, and spending',
+    widgetTitle: 'Cross-Module Insights',
+    widgetSubtitle: 'Interplay between habits, tasks, and finances',
+    viewAll: 'All Insights',
+    discussWithOgonyok: 'Ask Ogonyok',
+    needMoreDataTitle: 'Gathering Telemetry',
+    needMoreDataDesc: (current: number, required: number) => `The engine requires at least ${required} days of recorded activity to detect reliable patterns. Collected: ${current} of ${required} days.`,
+    historyProgress: (current: number, required: number) => `${current} of ${required} days`,
+    tabs: {
+      all: 'All Areas',
+      productivity: 'Productivity',
+      spending: 'Spending',
+      discipline: 'Discipline',
+      wellbeing: 'Wellbeing',
+    },
+    emptyCategory: 'No strong patterns detected in this category yet',
+    emptyAll: 'Keep tracking habits, tasks, and expenses — the system will automatically discover patterns.',
+  },
+
+  // Smart Coach Ogonyok
+  coach: {
+    name: 'Ogonyok',
+    badge: 'Personal Coach',
+    dailyGlanceTitle: 'Daily Tip from Ogonyok',
+    discussBtn: 'Discuss with Ogonyok',
+    thinking: 'Ogonyok is thinking...',
+    quickQuestions: 'Quick Questions:',
   }
 } as const
