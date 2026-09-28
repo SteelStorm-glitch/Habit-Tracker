@@ -5,11 +5,12 @@
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
 
-// Fallback cascade in case of temporary 503 high-demand spikes on Google's API
+// Fallback cascade: reliable gemma first, then high-end gemini models
 const MODEL_CASCADE = [
+  'gemma-4-26b-a4b-it',
+  'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
   'gemini-3.6-flash',
-  'gemini-3.5-flash',
   'gemini-flash-lite-latest',
 ]
 
@@ -105,10 +106,14 @@ export async function generateGeminiResponse(
 
       const data = await response.json()
 
-      if (response.ok && data.candidates && data.candidates[0]?.content?.parts[0]?.text) {
-        return {
-          text: data.candidates[0].content.parts[0].text.trim(),
-          modelUsed: model,
+      if (response.ok && data.candidates && data.candidates[0]?.content?.parts) {
+        const parts = data.candidates[0].content.parts
+        const answerPart = parts.find((p: { thought?: boolean; text?: string }) => !p.thought && p.text) || parts[parts.length - 1]
+        if (answerPart?.text) {
+          return {
+            text: answerPart.text.trim(),
+            modelUsed: model,
+          }
         }
       }
 
