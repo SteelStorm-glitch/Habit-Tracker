@@ -19,9 +19,111 @@ import { InsightCard } from './InsightCard'
 type FilterType = 'all' | InsightCategory
 
 export const InsightsView: React.FC = () => {
-  const { insightsResult } = useHabitStore()
+  const { insightsResult, currentUser, setIsAuthModalOpen } = useHabitStore()
   const { t } = useTranslation()
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+
+  const isGuest = !currentUser || currentUser.isGuest
+
+  if (isGuest) {
+    return (
+      <div className="space-y-6 stagger-children max-w-3xl mx-auto py-6">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+              <span className="size-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                <Brain className="size-4.5" />
+              </span>
+              {t.insights.title}
+            </h1>
+            <p className="text-xs text-neutral-400">
+              {t.insights.subtitle}
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium self-start sm:self-auto">
+            <Lock className="size-3.5" />
+            <span>Требуется аккаунт</span>
+          </div>
+        </div>
+
+        {/* Locked Feature Hero Box */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl glass-card border border-white/10 p-8 sm:p-10 text-center relative overflow-hidden space-y-6 shadow-2xl shadow-indigo-950/40"
+        >
+          {/* Ambient Glows */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 size-72 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 size-72 rounded-full bg-purple-500/10 blur-3xl pointer-events-none" />
+
+          {/* Icon */}
+          <div className="relative mx-auto size-20 rounded-3xl bg-gradient-to-tr from-indigo-600 to-purple-600 p-[1px] shadow-xl shadow-indigo-500/25">
+            <div className="size-full bg-neutral-950/90 rounded-[23px] flex items-center justify-center">
+              <Lock className="size-9 text-indigo-400" />
+            </div>
+          </div>
+
+          <div className="space-y-2 relative z-10 max-w-lg mx-auto">
+            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Кросс-модульные инсайты закрыты
+            </h2>
+            <p className="text-sm text-neutral-400 leading-relaxed">
+              Инсайты автоматически анализируют пересечения между привычками, выполнением задач и финансовыми тратами. Чтобы алгоритм отслеживал взаимосвязи, войдите в аккаунт или зарегистрируйтесь.
+            </p>
+          </div>
+
+          {/* Benefits Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-xl mx-auto text-left relative z-10">
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2 text-indigo-300 font-semibold text-xs">
+                <Zap className="size-3.5" />
+                <span>Привычки & Задачи</span>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-snug">
+                Как ваши ритуалы влияют на скорость закрытия дел
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2 text-emerald-300 font-semibold text-xs">
+                <Wallet className="size-3.5" />
+                <span>Финансы & Дни</span>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-snug">
+                Дни пиковых трат и корреляция с продуктивностью
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+              <div className="flex items-center gap-2 text-amber-300 font-semibold text-xs">
+                <Sparkles className="size-3.5" />
+                <span>Тренер «Огонёк»</span>
+              </div>
+              <p className="text-[11px] text-neutral-400 leading-snug">
+                Персональные проактивные подсказки в реальном времени
+              </p>
+            </div>
+          </div>
+
+          {/* CTA */}
+          <div className="pt-2 relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Lock className="size-4" />
+              <span>Войти или зарегистрироваться</span>
+            </button>
+          </div>
+
+          <p className="text-xs text-neutral-500 pt-1">
+            Базовые функции (трекер привычек, простой список задач и финансы) остаются доступными без аккаунта.
+          </p>
+        </motion.div>
+      </div>
+    )
+  }
 
   const { insights, dataCompleteness } = insightsResult
   const { currentDays, requiredDays } = dataCompleteness

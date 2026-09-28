@@ -7,7 +7,8 @@ import {
   HelpCircle,
   User,
   Wallet,
-  Brain
+  Brain,
+  Lock
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useHabitStore } from '@/context/HabitContext'
@@ -21,6 +22,7 @@ interface NavItem {
   label: string
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   color: string
+  badge?: string | number
 }
 
 export const Sidebar: React.FC = () => {
@@ -37,6 +39,7 @@ export const Sidebar: React.FC = () => {
   } = useHabitStore()
 
   const { t } = useTranslation()
+  const isGuest = !currentUser || currentUser.isGuest
 
   // Base navigation items
   const navItems: NavItem[] = [
@@ -60,9 +63,10 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: 'insights',
-      label: t.nav.insights,
+      label: isGuest ? `${t.nav.insights} (Аккаунт)` : t.nav.insights,
       icon: Brain,
-      color: '#a855f7' // purple
+      color: '#a855f7', // purple
+      badge: isGuest ? '🔒' : undefined
     }
   ]
 
@@ -135,6 +139,7 @@ export const Sidebar: React.FC = () => {
               icon={item.icon}
               isActive={activeTab === item.id}
               color={item.color}
+              badge={item.badge}
               onClick={() => setActiveTab(item.id)}
             />
           ))}
@@ -144,7 +149,11 @@ export const Sidebar: React.FC = () => {
         <div className="w-6 h-px bg-white/10 rounded-full" />
 
         {/* AI Button */}
-        <VerticalTooltip label={t.nav.aiAssistant} color="#818cf8">
+        <VerticalTooltip
+          label={isGuest ? `${t.nav.aiAssistant} (🔒 Только в аккаунте)` : t.nav.aiAssistant}
+          color="#818cf8"
+          badge={isGuest ? '🔒' : undefined}
+        >
           <motion.button
             id="btnSidebarAi"
             onClick={() => setIsAiDrawerOpen(true)}
@@ -154,6 +163,11 @@ export const Sidebar: React.FC = () => {
             aria-label={t.nav.aiAssistant}
           >
             <Sparkles className="size-[18px] text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+            {isGuest && (
+              <span className="absolute -top-1 -right-1 size-3.5 rounded-full bg-neutral-900 border border-amber-500/40 flex items-center justify-center shadow-sm">
+                <Lock className="size-2 text-amber-400" />
+              </span>
+            )}
           </motion.button>
         </VerticalTooltip>
 
@@ -237,6 +251,7 @@ export const Sidebar: React.FC = () => {
         {visibleItems.map(item => {
           const Icon = item.icon
           const isActive = activeTab === item.id
+          const isItemLocked = item.id === 'insights' && isGuest
           return (
             <motion.button
               key={item.id}
@@ -253,15 +268,22 @@ export const Sidebar: React.FC = () => {
                   className="absolute inset-0 rounded-xl bg-white/10 border border-white/10 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
                 />
               )}
-              <Icon
-                className="size-5 transition-colors relative z-10"
-                style={{ color: isActive ? item.color : '#6b7280' }}
-              />
+              <div className="relative">
+                <Icon
+                  className="size-5 transition-colors relative z-10"
+                  style={{ color: isActive ? item.color : '#6b7280' }}
+                />
+                {isItemLocked && (
+                  <span className="absolute -top-1 -right-1.5 size-3 rounded-full bg-neutral-900 border border-amber-500/40 flex items-center justify-center">
+                    <Lock className="size-1.5 text-amber-400" />
+                  </span>
+                )}
+              </div>
               <span
                 className="text-[9px] font-medium transition-colors relative z-10"
                 style={{ color: isActive ? item.color : '#6b7280' }}
               >
-                {item.label}
+                {item.id === 'insights' ? t.nav.insights : item.label}
               </span>
             </motion.button>
           )
@@ -274,7 +296,14 @@ export const Sidebar: React.FC = () => {
           whileTap={{ scale: 0.88 }}
           className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl cursor-pointer"
         >
-          <Sparkles className="size-5 text-indigo-400" />
+          <div className="relative">
+            <Sparkles className="size-5 text-indigo-400" />
+            {isGuest && (
+              <span className="absolute -top-1 -right-1.5 size-3 rounded-full bg-neutral-900 border border-amber-500/40 flex items-center justify-center">
+                <Lock className="size-1.5 text-amber-400" />
+              </span>
+            )}
+          </div>
           <span className="text-[9px] font-medium text-indigo-400">AI</span>
         </motion.button>
 

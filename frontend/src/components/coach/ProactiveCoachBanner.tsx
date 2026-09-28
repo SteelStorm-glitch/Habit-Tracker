@@ -5,10 +5,10 @@ import { useHabitStore } from '@/context/HabitContext'
 import { useTranslation } from '@/locales'
 
 export const ProactiveCoachBanner: React.FC = () => {
-  const { proactiveAdvice, setIsAiDrawerOpen, sendAiMessage } = useHabitStore()
+  const { proactiveAdvice, setIsAiDrawerOpen, sendAiMessage, currentUser } = useHabitStore()
   const { t } = useTranslation()
 
-  if (!proactiveAdvice) return null
+  if (!currentUser || currentUser.isGuest || !proactiveAdvice) return null
 
   const handleDiscuss = () => {
     setIsAiDrawerOpen(true)

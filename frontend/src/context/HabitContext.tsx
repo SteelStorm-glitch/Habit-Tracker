@@ -345,6 +345,8 @@ export interface HabitContextType {
   setIsTourOpen: (open: boolean) => void
   tourStep: number
   setTourStep: (step: number) => void
+  isTourProposalOpen: boolean
+  setIsTourProposalOpen: (open: boolean) => void
 
   // Habits actions
   toggleHabitDay: (habitId: string, day: number) => void
@@ -387,6 +389,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAiThinking, setIsAiThinking] = useState(false)
   const [isTourOpen, setIsTourOpen] = useState(false)
   const [tourStep, setTourStep] = useState(0)
+  const [isTourProposalOpen, setIsTourProposalOpen] = useState(false)
 
   // Virtual date offset in days (for developer time-travel)
   const [virtualDateOffsetDays, setVirtualDateOffsetDays] = useState(0)
@@ -526,6 +529,17 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(STORAGE_KEYS.DEV_MODE, isDevModeUnlocked ? 'true' : 'false')
   }, [isDevModeUnlocked])
 
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      ;(window as any).__habitStore = {
+        setIsTourProposalOpen,
+        setIsTourOpen,
+        setTourStep,
+        setCurrentUser
+      }
+    }
+  }, [setIsTourProposalOpen, setIsTourOpen, setTourStep, setCurrentUser])
+
   // ═══════════════════════════════════════════
   // VIRTUAL TIME
   // ═══════════════════════════════════════════
@@ -629,6 +643,10 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const discussInsightInChat = (insight: CrossModuleInsight) => {
+    if (!currentUser || currentUser.isGuest) {
+      setIsAuthModalOpen(true)
+      return
+    }
     setIsAiDrawerOpen(true)
     const prompt = `Привет! Расскажи подробнее про выявленный инсайт: «${insight.claim}». Что мне предпринять сегодня?`
     sendAiMessage(prompt)
@@ -904,6 +922,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })
 
       setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
+      setIsTourProposalOpen(true)
       return { success: true }
     } catch (err: unknown) {
       return { success: false, error: translateFirebaseError(err) }
@@ -949,6 +968,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           prefs,
           updatedAt: new Date().toISOString()
         })
+        setIsTourProposalOpen(true)
       }
       setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
       return { success: true }
@@ -1014,6 +1034,10 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const generateAiTask = () => {
+    if (!currentUser || currentUser.isGuest) {
+      setIsAuthModalOpen(true)
+      return
+    }
     const categories = Object.keys(AI_TASK_BANK) as (keyof typeof AI_TASK_BANK)[]
     const habitCategories = habits.map(h => h.category)
 
@@ -1067,6 +1091,10 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }
 
   const sendAiMessage = async (text: string) => {
+    if (!currentUser || currentUser.isGuest) {
+      setIsAuthModalOpen(true)
+      return
+    }
     if (!text.trim()) return
     const userMsg: AiMessage = {
       id: `msg-${Date.now()}`,
@@ -1472,6 +1500,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Onboarding Tour
       isTourOpen, setIsTourOpen, tourStep, setTourStep,
+      isTourProposalOpen, setIsTourProposalOpen,
 
       // Habits
       toggleHabitDay, addHabit, deleteHabit,

@@ -16,6 +16,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import { DevPasscodeModal } from '@/components/developer/DevPasscodeModal'
 import { AiDrawer } from '@/components/ai/AiDrawer'
 import { HelpTour } from '@/components/tour/HelpTour'
+import { WelcomeTourModal } from '@/components/tour/WelcomeTourModal'
 
 const MainContent: React.FC = () => {
   const { activeTab } = useHabitStore()
@@ -55,6 +56,7 @@ const MainContent: React.FC = () => {
       <DevPasscodeModal />
       <AiDrawer />
       <HelpTour />
+      <WelcomeTourModal />
     </div>
   )
 }

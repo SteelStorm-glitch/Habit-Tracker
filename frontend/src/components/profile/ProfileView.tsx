@@ -25,7 +25,7 @@ export const ProfileView: React.FC = () => {
   // If user is not logged in, render the Auth view directly on Profile tab!
   // "НЕ Localstorage, все эти фишки будут доступны только с входом в аккаунт."
   // ─────────────────────────────────────────────────────────────────────────
-  if (!currentUser) {
+  if (!currentUser || currentUser.isGuest) {
     return (
       <div className="max-w-[1080px] mx-auto py-4 sm:py-8 stagger-children">
         <div className="mb-4 px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs sm:text-sm flex items-center justify-between gap-3">
