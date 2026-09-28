@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useState } from 'react'
 import {
   Sheet,
   SheetContent,
@@ -30,6 +30,7 @@ import {
   User as UserIcon
 } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { useTranslation } from '@/locales'
 
 export const SettingsSheet: React.FC = () => {
   const {
@@ -50,10 +51,12 @@ export const SettingsSheet: React.FC = () => {
     setIsTourOpen,
     setTourStep,
     gamification,
-    aiSettings,
-    setIsAiDrawerOpen
+    setIsAiDrawerOpen,
+    syncCloudData,
+    lastSyncTime
   } = useHabitStore()
 
+  const [isSyncing, setIsSyncing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,11 +127,11 @@ export const SettingsSheet: React.FC = () => {
     setIsTourOpen(true)
   }
 
+  const { t, isRu } = useTranslation()
+
   const xpNeeded = gamification ? gamification.level * 150 : 150
   const xpCurrent = gamification ? gamification.xp % xpNeeded : 0
   const xpProgress = (xpCurrent / xpNeeded) * 100
-
-  const isRu = prefs.lang === 'ru'
 
   return (
     <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
@@ -138,7 +141,7 @@ export const SettingsSheet: React.FC = () => {
       >
         <SheetHeader className="px-6 py-4 border-b border-white/10 flex flex-row items-center justify-between bg-white/[0.02]">
           <SheetTitle className="text-lg font-semibold text-white tracking-tight">
-            {isRu ? 'Настройки' : 'Settings'}
+            {t.settings.title}
           </SheetTitle>
         </SheetHeader>
 
@@ -156,11 +159,11 @@ export const SettingsSheet: React.FC = () => {
               </div>
               <div className="space-y-0.5">
                 <div className="font-semibold text-sm text-white">
-                  {currentUser ? (currentUser.displayName || currentUser.email) : 'Гостевой режим'}
+                  {currentUser ? (currentUser.displayName || currentUser.email) : t.common.guestMode}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-emerald-400">
                   <Cloud className="size-3.5" />
-                  <span>{currentUser ? 'Облако Firebase ✓' : 'Стрик и опыт отключены'}</span>
+                  <span>{currentUser ? t.profile.cloudBadge('habit-b2d0a') : t.common.guestNotice}</span>
                 </div>
               </div>
             </div>
@@ -170,15 +173,15 @@ export const SettingsSheet: React.FC = () => {
                   onClick={handleOpenProfile}
                   className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-medium text-neutral-200 border border-white/10 transition-all cursor-pointer active:scale-95"
                 >
-                  Профиль
+                  {t.settings.profileBtn}
                 </button>
                 <button
                   onClick={() => {
                     logoutUser()
-                    alert('Вы вышли из аккаунта.')
+                    alert(isRu ? 'Вы вышли из аккаунта.' : 'You have logged out.')
                   }}
                   className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-all cursor-pointer"
-                  title="Выйти из аккаунта"
+                  title={t.settings.logoutBtn}
                 >
                   <LogOut className="size-3.5" />
                 </button>
@@ -191,7 +194,7 @@ export const SettingsSheet: React.FC = () => {
                 }}
                 className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-semibold text-white shadow-md shadow-purple-600/30 transition-all cursor-pointer active:scale-95"
               >
-                Войти
+                {t.settings.loginBtn}
               </button>
             )}
           </div>
@@ -202,10 +205,10 @@ export const SettingsSheet: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="text-[11px] font-semibold tracking-wider text-amber-400 uppercase flex items-center gap-1.5">
                   <Zap className="size-3.5" />
-                  <span>Геймификация и стрик</span>
+                  <span>{t.settings.gamificationHeader}</span>
                 </div>
                 <span className="text-xs font-mono font-bold text-indigo-300">
-                  Уровень {gamification.level}
+                  {t.settings.levelBadge(gamification.level)}
                 </span>
               </div>
 
@@ -216,8 +219,8 @@ export const SettingsSheet: React.FC = () => {
                     <Flame className="size-4 animate-streak-fire" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-neutral-400">Стрик заходов</div>
-                    <div className="text-sm font-bold text-white font-mono">{gamification.streakDays} дн.</div>
+                    <div className="text-[10px] text-neutral-400">{t.settings.streakTitle}</div>
+                    <div className="text-sm font-bold text-white font-mono">{t.settings.streakDays(gamification.streakDays)}</div>
                   </div>
                 </div>
 
@@ -226,8 +229,8 @@ export const SettingsSheet: React.FC = () => {
                     <Zap className="size-4" />
                   </div>
                   <div>
-                    <div className="text-[10px] text-neutral-400">Всего опыта</div>
-                    <div className="text-sm font-bold text-white font-mono">{gamification.xp} XP</div>
+                    <div className="text-[10px] text-neutral-400">{t.settings.totalXpTitle}</div>
+                    <div className="text-sm font-bold text-white font-mono">{t.settings.totalXp(gamification.xp)}</div>
                   </div>
                 </div>
               </div>
@@ -235,7 +238,7 @@ export const SettingsSheet: React.FC = () => {
               {/* Progress to next level */}
               <div className="space-y-1.5 pt-1">
                 <div className="flex justify-between text-[11px] text-neutral-400 font-mono">
-                  <span>До {gamification.level + 1} уровня</span>
+                  <span>{t.settings.toNextLevel(gamification.level + 1)}</span>
                   <span>{xpCurrent} / {xpNeeded} XP</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden p-0.5">
@@ -255,9 +258,9 @@ export const SettingsSheet: React.FC = () => {
                 <Bot className="size-4" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-white">Модель интеллекта (AI)</div>
+                <div className="text-xs font-semibold text-white">{t.settings.aiHeader}</div>
                 <div className="text-[11px] text-neutral-400">
-                  {aiSettings.provider === 'local' ? 'Локальная модель (оффлайн)' : `${aiSettings.provider.toUpperCase()} (${aiSettings.model})`}
+                  Google Gemini (Gemini 3.5 Flash-Lite)
                 </div>
               </div>
             </div>
@@ -268,7 +271,7 @@ export const SettingsSheet: React.FC = () => {
               }}
               className="px-2.5 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 text-xs font-medium border border-purple-500/25 transition-all cursor-pointer active:scale-95"
             >
-              Настроить
+              Открыть чат
             </button>
           </div>
 
@@ -276,14 +279,14 @@ export const SettingsSheet: React.FC = () => {
           <div className="space-y-2.5">
             <div className="text-[11px] font-semibold tracking-wider text-amber-400 uppercase flex items-center gap-1.5">
               <Terminal className="size-3.5" />
-              <span>{isRu ? 'Инженерная консоль' : 'Developer Console'}</span>
+              <span>{t.settings.devConsoleHeader}</span>
             </div>
 
             <div className="p-4 rounded-2xl glass-card border-amber-500/20 flex items-center justify-between">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Режим разработчика' : 'Developer Mode'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.devModeTitle}</div>
                 <div className="text-xs text-neutral-400">
-                  {isDevModeUnlocked ? (isRu ? 'Консоль QA и симулятор времени активны' : 'QA Console & Time-Travel active') : (isRu ? 'Консоль QA, генератор данных, симулятор' : 'QA console, data generator, simulator')}
+                  {isDevModeUnlocked ? t.settings.devModeActiveDesc : t.settings.devModeDesc}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -291,7 +294,7 @@ export const SettingsSheet: React.FC = () => {
                   <button
                     onClick={() => lockDevMode()}
                     className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-400 hover:bg-white/5 transition-colors"
-                    title={isRu ? 'Заблокировать консоль' : 'Lock Console'}
+                    title={t.settings.lockConsoleTooltip}
                   >
                     <Lock className="size-4" />
                   </button>
@@ -302,7 +305,7 @@ export const SettingsSheet: React.FC = () => {
                   className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
                 >
                   {isDevModeUnlocked ? <Unlock className="size-3.5" /> : <Terminal className="size-3.5" />}
-                  <span>{isDevModeUnlocked ? (isRu ? 'Открыть' : 'Open') : (isRu ? 'Активировать' : 'Unlock')}</span>
+                  <span>{isDevModeUnlocked ? t.settings.devModeUnlocked : t.settings.devModeLocked}</span>
                 </button>
               </div>
             </div>
@@ -310,13 +313,13 @@ export const SettingsSheet: React.FC = () => {
 
           {/* Section: ИНТЕРФЕЙС */}
           <div className="space-y-3">
-            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{isRu ? 'Интерфейс' : 'Interface'}</div>
+            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{t.settings.interfaceHeader}</div>
 
             {/* Плавные анимации */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Плавные анимации' : 'Smooth animations'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Эффекты переходов и микро-взаимодействий' : 'Transition effects and micro-interactions'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.animationsTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.animationsDesc}</div>
               </div>
               <Switch
                 checked={prefs.animationsEnabled !== false}
@@ -328,8 +331,8 @@ export const SettingsSheet: React.FC = () => {
             {/* Язык */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Язык' : 'Language'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Язык интерфейса' : 'Interface language'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.languageTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.languageDesc}</div>
               </div>
               <div className="flex items-center glass-card p-1 rounded-xl">
                 <button
@@ -354,8 +357,8 @@ export const SettingsSheet: React.FC = () => {
             {/* Тема */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Стиль темы' : 'Theme style'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Glassmorphism тёмный' : 'Glassmorphism Dark'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.themeTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.themeDesc}</div>
               </div>
               <div className="flex items-center glass-card p-1 rounded-xl">
                 <button
@@ -380,8 +383,8 @@ export const SettingsSheet: React.FC = () => {
             {/* Плотность таблицы */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Плотность таблицы' : 'Table density'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Высота строк в матрице привычек' : 'Row height in habit matrix'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.densityTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.densityDesc}</div>
               </div>
               <div className="flex items-center glass-card p-1 rounded-xl">
                 <button
@@ -390,7 +393,7 @@ export const SettingsSheet: React.FC = () => {
                     prefs.tableDensity === 'normal' ? 'bg-white/10 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
-                  {isRu ? 'Обычная' : 'Normal'}
+                  {t.settings.densityNormal}
                 </button>
                 <button
                   onClick={() => updatePrefs({ tableDensity: 'dense' })}
@@ -398,7 +401,7 @@ export const SettingsSheet: React.FC = () => {
                     prefs.tableDensity === 'dense' ? 'bg-white/10 text-white shadow-xs' : 'text-neutral-400 hover:text-neutral-200'
                   }`}
                 >
-                  {isRu ? 'Плотная' : 'Dense'}
+                  {t.settings.densityDense}
                 </button>
               </div>
             </div>
@@ -406,13 +409,13 @@ export const SettingsSheet: React.FC = () => {
 
           {/* Section: УВЕДОМЛЕНИЯ */}
           <div className="space-y-3 pt-2">
-            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{isRu ? 'Уведомления' : 'Notifications'}</div>
+            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{t.settings.notificationsHeader}</div>
 
             {/* Напоминания */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Напоминания' : 'Reminders'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Каждый вечер в 20:00' : 'Every evening at 20:00'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.remindersTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.remindersDesc}</div>
               </div>
               <Switch
                 checked={prefs.reminderEnabled}
@@ -424,8 +427,8 @@ export const SettingsSheet: React.FC = () => {
             {/* Итоги недели */}
             <div className="flex items-center justify-between py-1">
               <div>
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Итоги недели' : 'Weekly summary'}</div>
-                <div className="text-xs text-neutral-400">{isRu ? 'Сводка по привычкам и финансам' : 'Habits and finances overview'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.weeklySummaryTitle}</div>
+                <div className="text-xs text-neutral-400">{t.settings.weeklySummaryDesc}</div>
               </div>
               <Switch
                 checked={prefs.weeklySummaryEnabled}
@@ -437,7 +440,34 @@ export const SettingsSheet: React.FC = () => {
 
           {/* Section: ДАННЫЕ */}
           <div className="space-y-3 pt-2">
-            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{isRu ? 'Данные' : 'Data'}</div>
+            <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{t.settings.dataHeader}</div>
+
+            {/* Cloud Sync Status */}
+            {currentUser && (
+              <div className="p-3.5 rounded-2xl glass-card border-indigo-500/20 flex items-center justify-between">
+                <div className="space-y-0.5 max-w-[210px]">
+                  <div className="text-sm font-medium text-neutral-200 flex items-center gap-1.5">
+                    <Cloud className="size-4 text-indigo-400" />
+                    <span>{t.settings.cloudCardTitle('habit-b2d0a')}</span>
+                  </div>
+                  <div className="text-[11px] text-neutral-400 leading-tight">
+                    {lastSyncTime ? t.settings.cloudSyncedAt(lastSyncTime) : t.settings.cloudAllBound}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => {
+                    setIsSyncing(true)
+                    await syncCloudData('push')
+                    setTimeout(() => setIsSyncing(false), 500)
+                  }}
+                  disabled={isSyncing}
+                  className="flex items-center gap-1.5 text-indigo-300 hover:text-indigo-200 text-xs font-semibold cursor-pointer px-3 py-1.5 rounded-xl bg-indigo-500/15 border border-indigo-500/30 transition-all active:scale-95"
+                >
+                  <Cloud className={`size-3.5 ${isSyncing ? 'animate-pulse text-indigo-400' : ''}`} />
+                  <span>{isSyncing ? t.settings.syncingBtn : t.settings.syncNowBtn}</span>
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-2.5">
               <Button
@@ -446,7 +476,7 @@ export const SettingsSheet: React.FC = () => {
                 className="h-10 glass-button text-xs font-medium text-neutral-200 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Download className="size-3.5" />
-                <span>{isRu ? 'Скачать бэкап' : 'Export backup'}</span>
+                <span>{t.settings.exportBackupBtn}</span>
               </Button>
 
               <Button
@@ -455,7 +485,7 @@ export const SettingsSheet: React.FC = () => {
                 className="h-10 glass-button text-xs font-medium text-neutral-200 flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Upload className="size-3.5" />
-                <span>{isRu ? 'Загрузить бэкап' : 'Import backup'}</span>
+                <span>{t.settings.importBackupBtn}</span>
               </Button>
               <input
                 ref={fileInputRef}
@@ -469,9 +499,9 @@ export const SettingsSheet: React.FC = () => {
             {/* Очистить хранилище */}
             <div className="p-4 rounded-2xl glass-card border-rose-500/20 flex items-center justify-between">
               <div className="space-y-0.5 max-w-[210px]">
-                <div className="text-sm font-medium text-neutral-200">{isRu ? 'Очистить хранилище' : 'Clear storage'}</div>
+                <div className="text-sm font-medium text-neutral-200">{t.settings.clearStorageTitle}</div>
                 <div className="text-[11px] text-neutral-400 leading-tight">
-                  {isRu ? 'Удалит все записи без возможности восстановления' : 'Permanently erases all local data'}
+                  {t.settings.clearStorageDesc}
                 </div>
               </div>
               <button
@@ -479,7 +509,7 @@ export const SettingsSheet: React.FC = () => {
                 className="flex items-center gap-1.5 text-rose-400 hover:text-rose-300 text-xs font-medium cursor-pointer transition-colors p-1 active:scale-95"
               >
                 <Trash2 className="size-3.5" />
-                <span>{isRu ? 'Очистить' : 'Clear'}</span>
+                <span>{t.settings.clearStorageBtn}</span>
               </button>
             </div>
           </div>
@@ -487,13 +517,13 @@ export const SettingsSheet: React.FC = () => {
           {/* Section: ПОМОЩЬ */}
           <div className="space-y-2.5 pt-2">
             <div className="flex items-center justify-between">
-              <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{isRu ? 'Помощь и обучение' : 'Help & Tutorial'}</div>
+              <div className="text-[11px] font-semibold tracking-wider text-neutral-400 uppercase">{t.settings.helpHeader}</div>
               <button
                 onClick={handleStartTour}
                 className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1 cursor-pointer"
               >
                 <HelpCircle className="size-3.5" />
-                <span>{isRu ? 'Запустить тур' : 'Start tour'}</span>
+                <span>{t.settings.startTourBtn}</span>
               </button>
             </div>
 
@@ -501,34 +531,28 @@ export const SettingsSheet: React.FC = () => {
               <Accordion type="single" collapsible className="w-full border-none">
                 <AccordionItem value="item-1" className="border-none px-4">
                   <AccordionTrigger className="text-xs font-medium text-neutral-200 py-3 hover:no-underline">
-                    {isRu ? 'Как начисляется опыт (XP) и растёт уровень?' : 'How is XP gained and level increased?'}
+                    {t.settings.faqXpTitle}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-neutral-400 pb-3 leading-relaxed">
-                    {isRu
-                      ? 'За каждую отмеченную привычку вы получаете +10 XP, за выполнение обычной задачи +25 XP, за задачу от AI +30 XP, а за полное закрытие всех привычек за день — бонусные +50 XP! Стрик также даёт награды на 7, 14 и 30 дней.'
-                      : 'You gain +10 XP for each completed habit, +25 XP for tasks, +30 XP for AI tasks, and +50 XP bonus for completing all habits in a day! Streaks also award milestones at 7, 14, and 30 days.'}
+                    {t.settings.faqXpDesc}
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-2" className="border-t border-white/5 px-4">
                   <AccordionTrigger className="text-xs font-medium text-neutral-200 py-3 hover:no-underline">
-                    {isRu ? 'Как настроить собственную AI-модель?' : 'How to configure custom AI models?'}
+                    {t.settings.faqAiTitle}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-neutral-400 pb-3 leading-relaxed">
-                    {isRu
-                      ? 'Откройте вкладку AI (иконка искр в левой панели), нажмите на кнопку ползунков в правом верхнем углу дрейвера и выберите нужного провайдера (OpenAI, Gemini или Custom API) и введите свой API-ключ.'
-                      : 'Open the AI tab (sparkle icon in the sidebar), click the sliders button in the drawer header, choose your provider (OpenAI, Gemini, or Custom API), and paste your API key.'}
+                    {t.settings.faqAiDesc}
                   </AccordionContent>
                 </AccordionItem>
 
                 <AccordionItem value="item-3" className="border-t border-white/5 px-4">
                   <AccordionTrigger className="text-xs font-medium text-neutral-200 py-3 hover:no-underline">
-                    {isRu ? 'Где хранятся мои данные?' : 'Where is my data stored?'}
+                    {t.settings.faqDataTitle}
                   </AccordionTrigger>
                   <AccordionContent className="text-xs text-neutral-400 pb-3 leading-relaxed">
-                    {isRu
-                      ? 'Все данные хранятся локально в вашем браузере в зашифрованном виде и могут моментально экспортироваться в формате JSON через резервную копию.'
-                      : 'All data is stored locally in your browser and can be instantly exported as JSON backups, or synced via Firebase when logged in.'}
+                    {t.settings.faqDataDesc}
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>
@@ -544,7 +568,7 @@ export const SettingsSheet: React.FC = () => {
             className="w-full h-10 glass-button text-xs font-medium text-neutral-200 flex items-center justify-center gap-2 cursor-pointer"
           >
             <Share2 className="size-3.5" />
-            <span>{isRu ? 'Поделиться трекером' : 'Share tracker'}</span>
+            <span>{t.settings.shareTrackerBtn}</span>
           </Button>
         </div>
       </SheetContent>

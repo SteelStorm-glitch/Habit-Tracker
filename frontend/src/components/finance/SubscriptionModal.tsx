@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog'
 import { Heart, Calendar, CreditCard, Sparkles } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106'
 
 export const SubscriptionModal: React.FC = () => {
   const { isAddSubOpen, setIsAddSubOpen, addSubscription } = useHabitStore()
@@ -87,7 +88,7 @@ export const SubscriptionModal: React.FC = () => {
           {/* Service Name */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-neutral-300">Сервис / Подписка</label>
-            <input
+            <SmoothInput
               type="text"
               required
               autoFocus
@@ -106,7 +107,7 @@ export const SubscriptionModal: React.FC = () => {
                 <CreditCard className="size-3.5 text-neutral-400" />
                 <span>Стоимость (₽)</span>
               </label>
-              <input
+              <SmoothInput
                 type="number"
                 step="any"
                 required

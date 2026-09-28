@@ -8,7 +8,7 @@ import {
   get,
   set
 } from './firebase'
-import type { GamificationState, Habit, Task, FinanceState, AchievementItem } from '@/types/habit'
+import type { GamificationState, Habit, Task, FinanceState, AchievementItem, UserCloudData } from '@/types/habit'
 
 export const DEFAULT_ACHIEVEMENTS_CONFIG: Omit<AchievementItem, 'unlocked' | 'unlockedAt' | 'progress'>[] = [
   {
@@ -114,36 +114,88 @@ export function translateFirebaseError(error: unknown): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cloud Sync: Load & Save Gamification directly to Firebase
+// Cloud Sync: Full User Data (Habits, Tasks, Finances, Gamification, Prefs)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function loadCloudGamification(uid: string, todayStr: string): Promise<GamificationState> {
+export async function loadFullUserData(uid: string, todayStr: string): Promise<UserCloudData | null> {
+  // 1. Try Firestore users doc
   try {
-    // 1. Try Firestore users doc
     const userDocRef = doc(db, 'users', uid)
     const snapshot = await getDoc(userDocRef)
     if (snapshot.exists()) {
-      const data = snapshot.data()
-      if (data && data.gamification) {
-        return data.gamification as GamificationState
+      const data = snapshot.data() as UserCloudData
+      if (data && (data.habits || data.tasks || data.finances || data.gamification)) {
+        return {
+          habits: data.habits || [],
+          tasks: data.tasks || [],
+          finances: data.finances || { transactions: [], subscriptions: [] },
+          gamification: data.gamification || getInitialGamification(todayStr),
+          prefs: data.prefs,
+          updatedAt: data.updatedAt
+        }
       }
     }
   } catch (err) {
-    console.warn('Firestore load failed, trying Realtime DB fallback:', err)
+    console.warn('Firestore load full user data failed, trying Realtime DB fallback:', err)
   }
 
+  // 2. Fallback to Realtime Database
   try {
-    // 2. Fallback to Realtime Database
-    const rtdbRef = ref(rtdb, `users/${uid}/gamification`)
+    const rtdbRef = ref(rtdb, `users/${uid}`)
     const snap = await get(rtdbRef)
     if (snap.exists()) {
-      return snap.val() as GamificationState
+      const data = snap.val() as UserCloudData
+      if (data && (data.habits || data.tasks || data.finances || data.gamification)) {
+        return {
+          habits: data.habits || [],
+          tasks: data.tasks || [],
+          finances: data.finances || { transactions: [], subscriptions: [] },
+          gamification: data.gamification || getInitialGamification(todayStr),
+          prefs: data.prefs,
+          updatedAt: data.updatedAt
+        }
+      }
     }
   } catch (err) {
-    console.warn('RTDB load failed:', err)
+    console.warn('RTDB load full user data failed:', err)
   }
 
-  // 3. If no cloud data found, initialize new gamification state and save to cloud
+  return null
+}
+
+export async function saveFullUserData(uid: string, data: UserCloudData): Promise<boolean> {
+  let saved = false
+  const cleanPayload = JSON.parse(JSON.stringify({
+    ...data,
+    updatedAt: new Date().toISOString()
+  }))
+
+  // 1. Save to Firestore
+  try {
+    const userDocRef = doc(db, 'users', uid)
+    await setDoc(userDocRef, cleanPayload, { merge: true })
+    saved = true
+  } catch (err) {
+    console.warn('Firestore save full user data failed:', err)
+  }
+
+  // 2. Also save to Realtime Database as backup
+  try {
+    const rtdbRef = ref(rtdb, `users/${uid}`)
+    await set(rtdbRef, cleanPayload)
+    saved = true
+  } catch (err) {
+    console.warn('RTDB save full user data failed:', err)
+  }
+
+  return saved
+}
+
+export async function loadCloudGamification(uid: string, todayStr: string): Promise<GamificationState> {
+  const full = await loadFullUserData(uid, todayStr)
+  if (full?.gamification) return full.gamification
+
+  // If no cloud data found, initialize new gamification state and save to cloud
   const fresh = getInitialGamification(todayStr)
   await saveCloudGamification(uid, fresh).catch(() => {})
   return fresh
@@ -159,13 +211,14 @@ export async function saveCloudGamification(uid: string, gamification: Gamificat
     saved = true
   } catch (err) {
     console.warn('Firestore save failed, attempting RTDB fallback:', err)
-    try {
-      const rtdbRef = ref(rtdb, `users/${uid}/gamification`)
-      await set(rtdbRef, gamification)
-      saved = true
-    } catch {
-      // RTDB fallback failed or permission denied
-    }
+  }
+
+  try {
+    const rtdbRef = ref(rtdb, `users/${uid}/gamification`)
+    await set(rtdbRef, gamification)
+    saved = true
+  } catch {
+    // RTDB fallback failed
   }
 
   return saved

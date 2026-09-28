@@ -178,7 +178,15 @@ export const HabitsView: React.FC = () => {
               <div className="w-12 h-1.5 rounded-full bg-white/5 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500"
-                  style={{ width: `${gamification ? ((gamification.xp % (gamification.level * 150)) / (gamification.level * 150)) * 100 : 0}%` }}
+                  style={{
+                    width: `${gamification ? (() => {
+                      const lvl = gamification.level
+                      const xpNeeded = lvl * 150
+                      const xpSpent = 150 * (lvl * (lvl - 1)) / 2
+                      const xpCurrent = Math.max(0, gamification.xp - xpSpent)
+                      return Math.min(100, Math.round((xpCurrent / xpNeeded) * 100))
+                    })() : 0}%`
+                  }}
                 />
               </div>
               <span className="text-sm font-bold text-indigo-300 font-mono">{gamification?.level || 1}</span>

@@ -24,12 +24,14 @@ import {
   onAuthStateChanged
 } from '@/lib/firebase'
 import {
-  loadCloudGamification,
+  loadFullUserData,
+  saveFullUserData,
   saveCloudGamification,
   evaluateAchievements,
   getInitialGamification,
   translateFirebaseError
 } from '@/lib/firebaseAuthService'
+import { generateGeminiResponse, GEMINI_API_KEY } from '@/lib/gemini'
 
 const STORAGE_KEYS = {
   HABITS: 'habit_app_habits',
@@ -59,9 +61,9 @@ const DEFAULT_PREFS: UserPrefs = {
 }
 
 const DEFAULT_AI_SETTINGS: AiSettings = {
-  provider: 'local',
-  apiKey: '',
-  model: 'local-default',
+  provider: 'gemini',
+  apiKey: GEMINI_API_KEY,
+  model: 'gemini-3.5-flash-lite',
   temperature: 0.7,
 }
 
@@ -249,6 +251,7 @@ export interface HabitContextType {
   setIsAiDrawerOpen: (open: boolean) => void
   aiMessages: AiMessage[]
   sendAiMessage: (text: string) => void
+  isAiThinking: boolean
   aiSettings: AiSettings
   updateAiSettings: (settings: Partial<AiSettings>) => void
   generateAiTask: () => void
@@ -302,6 +305,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
   const [isDevPasscodeModalOpen, setIsDevPasscodeModalOpen] = useState(false)
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false)
+  const [isAiThinking, setIsAiThinking] = useState(false)
   const [isTourOpen, setIsTourOpen] = useState(false)
   const [tourStep, setTourStep] = useState(0)
 
@@ -349,11 +353,21 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   ])
 
-  // AI Settings
+  // AI Settings (Gemini 3.5 Flash-Lite)
   const [aiSettings, setAiSettings] = useState<AiSettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.AI_SETTINGS)
-      return saved ? { ...DEFAULT_AI_SETTINGS, ...JSON.parse(saved) } : DEFAULT_AI_SETTINGS
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        return {
+          ...DEFAULT_AI_SETTINGS,
+          ...parsed,
+          provider: 'gemini',
+          model: 'gemini-3.5-flash-lite',
+          apiKey: DEFAULT_AI_SETTINGS.apiKey
+        }
+      }
+      return DEFAULT_AI_SETTINGS
     } catch {
       return DEFAULT_AI_SETTINGS
     }
@@ -483,8 +497,46 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }))
 
         const todayStr = getSimulatedNow().toISOString().split('T')[0]
-        const cloudData = await loadCloudGamification(fbUser.uid, todayStr)
-        setGamification(cloudData)
+        const cloudData = await loadFullUserData(fbUser.uid, todayStr)
+        if (cloudData) {
+          if (cloudData.habits && cloudData.habits.length > 0) setHabits(cloudData.habits)
+          if (cloudData.tasks && cloudData.tasks.length > 0) setTasks(cloudData.tasks)
+          if (cloudData.finances) setFinances(cloudData.finances)
+          if (cloudData.prefs) setPrefs(prev => ({ ...prev, ...cloudData.prefs }))
+
+          // Load gamification and check streak immediately on login
+          const loadedGamification = cloudData.gamification || getInitialGamification(todayStr)
+          const lastDate = new Date(loadedGamification.lastActiveDate)
+          const todayDate = new Date(todayStr)
+          const diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
+
+          if (loadedGamification.lastActiveDate !== todayStr) {
+            let newStreak = loadedGamification.streakDays
+            if (diffDays === 1) {
+              newStreak += 1
+            } else if (diffDays > 1) {
+              newStreak = 1
+            }
+            const maxStreak = Math.max(loadedGamification.maxStreak || 1, newStreak)
+            const updatedGam = { ...loadedGamification, streakDays: newStreak, maxStreak, lastActiveDate: todayStr }
+            setGamification(updatedGam)
+            saveCloudGamification(fbUser.uid, updatedGam).catch(() => {})
+          } else {
+            setGamification(loadedGamification)
+          }
+        } else {
+          // If first time or empty, save current state to user's cloud account
+          const freshGamification = getInitialGamification(todayStr)
+          setGamification(freshGamification)
+          await saveFullUserData(fbUser.uid, {
+            habits,
+            tasks,
+            finances,
+            gamification: freshGamification,
+            prefs,
+            updatedAt: new Date().toISOString()
+          })
+        }
         setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
       } else {
         setCurrentUser(null)
@@ -494,6 +546,31 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => unsubscribe()
   }, [virtualDateOffsetDays])
+
+  // Auto-sync full state to Firebase cloud whenever user makes changes
+  useEffect(() => {
+    if (!currentUser || currentUser.isGuest) return
+
+    const timer = setTimeout(() => {
+      const todayStr = getSimulatedNow().toISOString().split('T')[0]
+      saveFullUserData(currentUser.uid, {
+        habits,
+        tasks,
+        finances,
+        gamification: gamification || getInitialGamification(todayStr),
+        prefs,
+        updatedAt: new Date().toISOString()
+      }).then(ok => {
+        if (ok) {
+          setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
+        }
+      }).catch(err => {
+        console.warn('Auto cloud sync failed:', err)
+      })
+    }, 1500)
+
+    return () => clearTimeout(timer)
+  }, [habits, tasks, finances, gamification, prefs, currentUser])
 
   // ═══════════════════════════════════════════
   // GAMIFICATION (ACCOUNT-BOUND)
@@ -603,8 +680,25 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }))
 
       const todayStr = getSimulatedNow().toISOString().split('T')[0]
-      const cloudData = await loadCloudGamification(user.uid, todayStr)
-      setGamification(cloudData)
+      const cloudData = await loadFullUserData(user.uid, todayStr)
+      if (cloudData) {
+        if (cloudData.habits && cloudData.habits.length > 0) setHabits(cloudData.habits)
+        if (cloudData.tasks && cloudData.tasks.length > 0) setTasks(cloudData.tasks)
+        if (cloudData.finances) setFinances(cloudData.finances)
+        if (cloudData.gamification) setGamification(cloudData.gamification)
+        if (cloudData.prefs) setPrefs(prev => ({ ...prev, ...cloudData.prefs }))
+      } else {
+        const freshGamification = getInitialGamification(todayStr)
+        setGamification(freshGamification)
+        await saveFullUserData(user.uid, {
+          habits,
+          tasks,
+          finances,
+          gamification: freshGamification,
+          prefs,
+          updatedAt: new Date().toISOString()
+        })
+      }
       setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
       return { success: true }
     } catch (err: unknown) {
@@ -639,8 +733,17 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const todayStr = getSimulatedNow().toISOString().split('T')[0]
       const freshGamification = getInitialGamification(todayStr)
-      await saveCloudGamification(user.uid, freshGamification)
       setGamification(freshGamification)
+
+      await saveFullUserData(user.uid, {
+        habits,
+        tasks,
+        finances,
+        gamification: freshGamification,
+        prefs,
+        updatedAt: new Date().toISOString()
+      })
+
       setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
       return { success: true }
     } catch (err: unknown) {
@@ -669,8 +772,25 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }))
 
       const todayStr = getSimulatedNow().toISOString().split('T')[0]
-      const cloudData = await loadCloudGamification(user.uid, todayStr)
-      setGamification(cloudData)
+      const cloudData = await loadFullUserData(user.uid, todayStr)
+      if (cloudData) {
+        if (cloudData.habits && cloudData.habits.length > 0) setHabits(cloudData.habits)
+        if (cloudData.tasks && cloudData.tasks.length > 0) setTasks(cloudData.tasks)
+        if (cloudData.finances) setFinances(cloudData.finances)
+        if (cloudData.gamification) setGamification(cloudData.gamification)
+        if (cloudData.prefs) setPrefs(prev => ({ ...prev, ...cloudData.prefs }))
+      } else {
+        const freshGamification = getInitialGamification(todayStr)
+        setGamification(freshGamification)
+        await saveFullUserData(user.uid, {
+          habits,
+          tasks,
+          finances,
+          gamification: freshGamification,
+          prefs,
+          updatedAt: new Date().toISOString()
+        })
+      }
       setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }))
       return { success: true }
     } catch (err: unknown) {
@@ -693,13 +813,35 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setFirebaseConfig(config)
   }
 
-  const syncCloudData = async (_mode: 'push' | 'pull'): Promise<boolean> => {
-    if (!currentUser || !gamification) return false
-    const ok = await saveCloudGamification(currentUser.uid, gamification)
-    if (ok) {
-      setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+  const syncCloudData = async (mode: 'push' | 'pull'): Promise<boolean> => {
+    if (!currentUser || currentUser.isGuest) return false
+    const todayStr = getSimulatedNow().toISOString().split('T')[0]
+    if (mode === 'pull') {
+      const cloudData = await loadFullUserData(currentUser.uid, todayStr)
+      if (cloudData) {
+        if (cloudData.habits && cloudData.habits.length > 0) setHabits(cloudData.habits)
+        if (cloudData.tasks && cloudData.tasks.length > 0) setTasks(cloudData.tasks)
+        if (cloudData.finances) setFinances(cloudData.finances)
+        if (cloudData.gamification) setGamification(cloudData.gamification)
+        if (cloudData.prefs) setPrefs(prev => ({ ...prev, ...cloudData.prefs }))
+        setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        return true
+      }
+      return false
+    } else {
+      const ok = await saveFullUserData(currentUser.uid, {
+        habits,
+        tasks,
+        finances,
+        gamification: gamification || getInitialGamification(todayStr),
+        prefs,
+        updatedAt: new Date().toISOString()
+      })
+      if (ok) {
+        setLastSyncTime(new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+      }
+      return ok
     }
-    return ok
   }
 
   // ═══════════════════════════════════════════
@@ -725,12 +867,14 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const taskPool = AI_TASK_BANK[selectedCategory]
-    const taskTitle = taskPool[Math.floor(Math.random() * taskPool.length)]
-
-    if (tasks.some(t => t.title === taskTitle)) {
-      const alt = taskPool[Math.floor(Math.random() * taskPool.length)]
-      if (tasks.some(t => t.title === alt)) return
+    // Pick a random task, avoid duplicates (try up to 5 times)
+    let taskTitle = taskPool[Math.floor(Math.random() * taskPool.length)]
+    for (let attempt = 0; attempt < 5; attempt++) {
+      if (!tasks.some(t => t.title === taskTitle)) break
+      taskTitle = taskPool[Math.floor(Math.random() * taskPool.length)]
     }
+    // If all are duplicates, abort
+    if (tasks.some(t => t.title === taskTitle)) return
 
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
@@ -749,16 +893,19 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     setTasks(prev => [newTask, ...prev])
 
+    // Award +30 XP for using the AI task generator (account-bound)
+    earnXp(30, 'AI сгенерировал задачу')
+
     const botMsg: AiMessage = {
       id: `msg-${Date.now()}`,
-      text: `✨ Я добавил новую задачу: «${taskTitle}». Выполните её, чтобы получить +30 XP!`,
+      text: `✨ Я добавил новую задачу: «${taskTitle}». Выполните её, чтобы получить +20 XP! (Уже зачислено +30 XP за использование AI 🎉)`,
       sender: 'bot',
       timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     }
     setAiMessages(prev => [...prev, botMsg])
   }
 
-  const sendAiMessage = (text: string) => {
+  const sendAiMessage = async (text: string) => {
     if (!text.trim()) return
     const userMsg: AiMessage = {
       id: `msg-${Date.now()}`,
@@ -767,36 +914,94 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
     }
     setAiMessages(prev => [...prev, userMsg])
+    setIsAiThinking(true)
 
-    setTimeout(() => {
-      let botResponse = ''
-      const query = text.toLowerCase()
+    const query = text.toLowerCase()
 
-      if (query.includes('задач') && (query.includes('предлож') || query.includes('генер') || query.includes('создай') || query.includes('придум'))) {
+    if (query.includes('задач') && (query.includes('предлож') || query.includes('генер') || query.includes('создай') || query.includes('придум'))) {
+      setTimeout(() => {
         generateAiTask()
-        return
+        setIsAiThinking(false)
+      }, 700)
+      return
+    }
+
+    try {
+      const inc = finances.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+      const exp = finances.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+
+      const history = aiMessages.map(m => ({
+        role: (m.sender === 'user' ? 'user' : 'model') as 'user' | 'model',
+        text: m.text
+      }))
+
+      const result = await generateGeminiResponse(
+        text,
+        {
+          habitsCount: habits.length,
+          streakDays: gamification?.streakDays || 0,
+          level: gamification?.level || 1,
+          xp: gamification?.xp || 0,
+          pendingTasksCount: tasks.filter(t => !t.completed).length,
+          balance: inc - exp
+        },
+        history
+      )
+
+      const botMsg: AiMessage = {
+        id: `msg-${Date.now() + 1}`,
+        text: result.text,
+        sender: 'bot',
+        timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+      }
+      setAiMessages(prev => [...prev, botMsg])
+    } catch (geminiError: unknown) {
+      console.warn('[Gemini 3.5 Flash-Lite] Request error:', geminiError)
+
+      // Add brief realistic thinking delay before replying
+      await new Promise(r => setTimeout(r, 600))
+
+      const errString = String((geminiError as any)?.message || geminiError).toLowerCase()
+      const isRateLimit = errString.includes('429') || errString.includes('quota') || errString.includes('исчерпан') || errString.includes('rate limit')
+      const isOverloaded = errString.includes('503') || errString.includes('high demand') || errString.includes('unavailable') || errString.includes('нагрузка')
+      const isGeoBlocked = errString.includes('403') || errString.includes('vpn') || errString.includes('net:') || errString.includes('failed to fetch') || errString.includes('network') || errString.includes('load resource')
+
+      let fallbackNotice = ''
+      if (isRateLimit) {
+        fallbackNotice = '⚠️ Лимит запросов бесплатного тарифа Gemini временно исчерпан (ошибка 429: Rate Limit). Подождите ~20 секунд и отправьте сообщение снова.'
+      } else if (isOverloaded) {
+        fallbackNotice = '⚠️ Сервера Google Gemini сейчас перегружены (ошибка 503: High Demand на стороне Google). Подождите 10–15 секунд и напишите снова.'
+      } else if (isGeoBlocked) {
+        fallbackNotice = '⚠️ Gemini недоступен: включите VPN (Google API блокирует прямые запросы из РФ) или напишите чуть позже.'
+      } else {
+        fallbackNotice = '⚠️ Gemini сейчас временно недоступен. Напишите чуть позже или включите VPN для стабильного подключения к Google API.'
       }
 
-      if (query.includes('привычк') || query.includes('дисциплин') || query.includes('стрик')) {
-        const streakInfo = gamification && gamification.streakDays > 0 ? ` Ваш текущий стрик: ${gamification.streakDays} дн. 🔥` : ' Войдите в аккаунт, чтобы сохранять стрик.'
-        botResponse = `📊 У вас ${habits.length} активных привычек.${streakInfo} Рекомендую сосредоточиться на утренних ритуалах — они формируют фундамент энергии на весь день!`
-      } else if (query.includes('задач') || query.includes('дедлайн') || query.includes('дел')) {
+      let botResponse = ''
+
+      // Specific integration mentions
+      if (query.includes('@yt') || query.includes('@youtube')) {
+        const cleanTopic = text.replace(/@yt|@youtube/gi, '').trim() || 'утренние привычки и продуктивность'
+        botResponse = `${fallbackNotice}\n\n🎥 @yt Карточка YouTube с подборкой видео по теме «${cleanTopic}» сформирована и доступна ниже!`
+      } else if (query.includes('@google')) {
+        const cleanQuery = text.replace(/@google/gi, '').trim() || 'психология привычек и дофамин'
+        botResponse = `${fallbackNotice}\n\n🔍 @google Карточка поиска по теме «${cleanQuery}» подготовлена ниже.`
+      } else if (query.includes('@notion')) {
+        botResponse = `${fallbackNotice}\n\n📝 @notion Шаблон трекера недели в стиле Notion готов! Скопируйте Markdown по кнопке ниже.`
+      } else if (query.includes('кто ты') || query.includes('что ты') || query.includes('ты кто')) {
+        botResponse = `Привет! 👋 Я — AI-ассистент HabitSpace на базе Gemini 3.5 Flash-Lite.\n\n${fallbackNotice}\n\nКак только связь с сервером наладится, я смогу вести с вами полноценный умный диалог и анализировать ваши привычки.`
+      } else if (query.includes('@habits') || query.includes('привычк') || query.includes('дисциплин') || query.includes('стрик')) {
+        const streakInfo = gamification && gamification.streakDays > 0 ? ` Ваш стрик: ${gamification.streakDays} дн. 🔥` : ''
+        botResponse = `${fallbackNotice}\n\n📊 @habits По локальным данным у вас ${habits.length} активных привычек.${streakInfo}`
+      } else if (query.includes('@tasks') || query.includes('задач') || query.includes('дедлайн') || query.includes('дел')) {
         const activeTasks = tasks.filter(t => !t.completed)
-        botResponse = `📋 У вас ${activeTasks.length} незавершенных задач. Обратите внимание на задачи с высоким приоритетом. Завершайте задачи для получения XP!`
-      } else if (query.includes('финанс') || query.includes('деньг') || query.includes('бюджет') || query.includes('расход') || query.includes('доход') || query.includes('трат') || query.includes('сбережен')) {
+        botResponse = `${fallbackNotice}\n\n📋 @tasks У вас ${activeTasks.length} незавершенных задач. Выполняйте их для получения XP!`
+      } else if (query.includes('@finance') || query.includes('финанс') || query.includes('деньг') || query.includes('бюджет')) {
         const inc = finances.transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
         const exp = finances.transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-        botResponse = `💰 Ваш баланс за месяц: +₽${(inc - exp).toLocaleString('ru-RU')}. Рекомендуется направить 20% свободных средств в резервный фонд.`
-      } else if (query.includes('уровен') || query.includes('xp') || query.includes('опыт') || query.includes('прогресс')) {
-        if (gamification) {
-          const xpNeeded = gamification.level * 150
-          const xpCurrent = gamification.xp % xpNeeded
-          botResponse = `⭐ Уровень ${gamification.level} | ${xpCurrent}/${xpNeeded} XP до следующего. Стрик: ${gamification.streakDays} дн. 🔥 Продолжайте выполнять задачи и привычки для роста!`
-        } else {
-          botResponse = `⭐ Стрики и уровни доступны после входа в аккаунт! Создайте бесплатный аккаунт HabitSpace в один клик.`
-        }
+        botResponse = `${fallbackNotice}\n\n💰 @finance Баланс месяца: +₽${(inc - exp).toLocaleString('ru-RU')}.`
       } else {
-        botResponse = `🚀 Вы на правильном пути! Регулярное ведение трекера повышает продуктивность. Могу предложить новые задачи — просто попросите!`
+        botResponse = `${fallbackNotice}\n\n💡 Попробуйте отправить сообщение ещё раз через пару секунд или воспользуйтесь быстрыми командами @yt, @google, @notion или кнопкой «Сгенерировать задачу».`
       }
 
       const botMsg: AiMessage = {
@@ -806,7 +1011,9 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
       }
       setAiMessages(prev => [...prev, botMsg])
-    }, 450)
+    } finally {
+      setIsAiThinking(false)
+    }
   }
 
   // ═══════════════════════════════════════════
@@ -1079,7 +1286,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // AI Assistant
       isAiDrawerOpen, setIsAiDrawerOpen,
-      aiMessages, sendAiMessage,
+      aiMessages, sendAiMessage, isAiThinking,
       aiSettings, updateAiSettings, generateAiTask,
 
       // Gamification

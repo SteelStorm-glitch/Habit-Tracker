@@ -4,7 +4,6 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { X } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
 import { AuthFormView } from './AuthFormView'
 
@@ -16,21 +15,14 @@ export const AuthModal: React.FC = () => {
       <DialogContent
         aria-describedby={undefined}
         showCloseButton={false}
-        className="max-w-4xl w-[95vw] p-0 border-0 bg-transparent shadow-none overflow-visible focus:outline-none"
+        className="w-[95vw] max-w-[95vw] sm:max-w-4xl lg:max-w-5xl p-0 border-0 bg-transparent shadow-none overflow-hidden rounded-3xl sm:rounded-[32px] focus:outline-none my-auto max-h-[92vh] overflow-y-auto"
       >
         <DialogTitle className="sr-only">Авторизация HabitSpace</DialogTitle>
-        <div className="relative w-full">
-          {/* Close Modal Button */}
-          <button
-            onClick={() => setIsAuthModalOpen(false)}
-            className="absolute top-5 right-5 sm:top-7 sm:right-7 size-10 rounded-full bg-white/10 hover:bg-white/20 text-zinc-300 hover:text-white flex items-center justify-center transition-all cursor-pointer z-30 border border-white/10 backdrop-blur-md"
-            title="Закрыть"
-          >
-            <X className="size-5" />
-          </button>
-
-          <AuthFormView isModal onSuccess={() => setIsAuthModalOpen(false)} />
-        </div>
+        <AuthFormView
+          isModal
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={() => setIsAuthModalOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   )

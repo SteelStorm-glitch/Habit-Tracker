@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Plus, Search, Check, Trash2, Sparkles, Bot } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
 import type { Task } from '@/types/habit'
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106'
 
 export const TasksView: React.FC = () => {
   const { tasks, toggleTask, addTask, deleteTask, setIsAddTaskOpen, getSimulatedNow, generateAiTask } = useHabitStore()
@@ -182,8 +183,8 @@ export const TasksView: React.FC = () => {
 
         {/* Search Input */}
         <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-neutral-500" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-neutral-500 z-10" />
+          <SmoothInput
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -200,7 +201,7 @@ export const TasksView: React.FC = () => {
           onSubmit={handleCreateTask}
           className="p-3 border-b border-white/5 flex flex-wrap items-center gap-3 bg-white/[0.02]"
         >
-          <input
+          <SmoothInput
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}

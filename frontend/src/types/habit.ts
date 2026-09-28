@@ -136,3 +136,12 @@ export interface EmailVerificationState {
   expiresAt: number
   isVerified: boolean
 }
+
+export interface UserCloudData {
+  habits?: Habit[]
+  tasks?: Task[]
+  finances?: FinanceState
+  gamification?: GamificationState
+  prefs?: Partial<UserPrefs>
+  updatedAt?: string
+}

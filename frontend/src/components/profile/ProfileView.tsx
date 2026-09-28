@@ -1,8 +1,9 @@
-import React from 'react'
-import { Share2, Edit3, Settings as SettingsIcon, LogOut, Flame, Sparkles } from 'lucide-react'
+import React, { useState } from 'react'
+import { Share2, Edit3, Settings as SettingsIcon, LogOut, Flame, Sparkles, Cloud } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
 import { DEFAULT_ACHIEVEMENTS_CONFIG } from '@/lib/firebaseAuthService'
 import { AuthFormView } from '@/components/auth/AuthFormView'
+import { useTranslation } from '@/locales'
 
 export const ProfileView: React.FC = () => {
   const {
@@ -11,8 +12,14 @@ export const ProfileView: React.FC = () => {
     habits,
     prefs,
     setIsSettingsOpen,
-    logoutUser
+    logoutUser,
+    syncCloudData,
+    lastSyncTime,
+    updatePrefs,
   } = useHabitStore()
+
+  const { t } = useTranslation()
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // ─────────────────────────────────────────────────────────────────────────
   // If user is not logged in, render the Auth view directly on Profile tab!
@@ -24,7 +31,7 @@ export const ProfileView: React.FC = () => {
         <div className="mb-4 px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs sm:text-sm flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 shrink-0 text-purple-400" />
-            <span>Стрик, прокачка уровней и достижения синхронизируются только с активным аккаунтом Firebase.</span>
+            <span>{t.profile.authNotice}</span>
           </div>
         </div>
 
@@ -59,21 +66,47 @@ export const ProfileView: React.FC = () => {
   const maxStreak = gamification?.maxStreak || streak
   const level = gamification?.level || 1
   const totalXp = gamification?.xp || 0
+  // XP threshold for current level (level N costs N*150 XP to complete)
   const xpNeeded = level * 150
-  const xpCurrent = totalXp % xpNeeded
-  const xpRemaining = xpNeeded - xpCurrent
+  // XP spent reaching current level = sum of thresholds for levels 1..level-1
+  // Level 1 costs 150, level 2 costs 300, level 3 costs 450... sum = 150 * level*(level-1)/2
+  const xpSpentOnPreviousLevels = 150 * (level * (level - 1)) / 2
+  const xpCurrent = Math.max(0, totalXp - xpSpentOnPreviousLevels)
+  const xpRemaining = Math.max(0, xpNeeded - xpCurrent)
   const xpPercent = Math.min(100, Math.round((xpCurrent / xpNeeded) * 100))
 
-  // Weekly calculation
-  const weekDays = [
-    { label: 'Пн', fallbackRatio: 0.66, fallbackText: '4/6' },
-    { label: 'Вт', fallbackRatio: 0.83, fallbackText: '5/6' },
-    { label: 'Ср', fallbackRatio: 0, fallbackText: '0/6' },
-    { label: 'Чт', fallbackRatio: 0.5, fallbackText: '3/6' },
-    { label: 'Пт', fallbackRatio: 1.0, fallbackText: '6/6' },
-    { label: 'Сб', fallbackRatio: 0.66, fallbackText: '4/6' },
-    { label: 'Вс', fallbackRatio: 0, fallbackText: '0/6' },
-  ]
+  // Weekly activity: compute last 7 days from real habit checks
+  const DAY_LABELS_RU = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+  // Get today's date based on prefs
+  const today = new Date(currentYear, currentMonth, new Date().getDate())
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(today.getDate() - (6 - i))
+    const dayNum = d.getDate()
+    const dayMonthKey = `${d.getFullYear()}-${d.getMonth()}`
+    const completedCount = habits.filter(h => (h.checks[dayMonthKey] || []).includes(dayNum)).length
+    const ratio = habits.length > 0 ? completedCount / habits.length : 0
+    return {
+      label: DAY_LABELS_RU[d.getDay()],
+      fallbackRatio: ratio,
+      fallbackText: `${completedCount}/${habits.length}`,
+    }
+  })
+
+  // Best day of week (most habit completions on average)
+  const dayOfWeekTotals: number[] = [0, 0, 0, 0, 0, 0, 0]
+  habits.forEach(h => {
+    Object.entries(h.checks).forEach(([mk, daysArr]) => {
+      const [yr, mo] = mk.split('-').map(Number)
+      daysArr.forEach(day => {
+        const dow = new Date(yr, mo, day).getDay()
+        dayOfWeekTotals[dow]++
+      })
+    })
+  })
+  const bestDowIdx = dayOfWeekTotals.reduce((best, val, idx) => val > dayOfWeekTotals[best] ? idx : best, 1)
+  const bestDayLabel = habits.length > 0 && dayOfWeekTotals[bestDowIdx] > 0 ? DAY_LABELS_RU[bestDowIdx] : '—'
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -88,19 +121,30 @@ export const ProfileView: React.FC = () => {
       try {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(window.location.href)
-          alert('Ссылка на профиль скопирована в буфер обмена!')
+          alert(t.profile.shareSuccess)
         }
       } catch {
-        prompt('Ссылка на профиль:', window.location.href)
+        prompt(t.profile.sharePrompt, window.location.href)
       }
     }
   }
 
   const handleEditProfile = () => {
-    const newName = prompt('Введите новое имя пользователя:', displayName)
+    const newName = prompt(t.profile.editPrompt, displayName)
     if (newName && newName.trim()) {
-      alert(`Имя обновлено на "${newName.trim()}".`)
+      const trimmed = newName.trim()
+      updatePrefs({
+        userName: trimmed,
+        userTag: trimmed.slice(0, 2).toUpperCase(),
+      })
+      alert(t.profile.editSuccess(trimmed))
     }
+  }
+
+  const handleManualSync = async () => {
+    setIsSyncing(true)
+    await syncCloudData('push')
+    setTimeout(() => setIsSyncing(false), 600)
   }
 
   return (
@@ -118,17 +162,27 @@ export const ProfileView: React.FC = () => {
       {/* ══════ Desktop Top Bar (Hidden on Mobile) ══════ */}
       <div className="hidden sm:flex items-center justify-between gap-3 pt-2">
         <div className="space-y-0.5">
-          <p className="text-xs text-neutral-400 font-medium">Главная / Профиль</p>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Мой профиль</h1>
+          <p className="text-xs text-neutral-400 font-medium">{t.profile.breadcrumb}</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">{t.profile.title}</h1>
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-emerald-300 glass hover:bg-emerald-500/10 border-emerald-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
+            title={t.profile.syncTooltip(lastSyncTime)}
+          >
+            <Cloud className={`size-3.5 ${isSyncing ? 'animate-pulse text-emerald-400' : ''}`} />
+            <span>{isSyncing ? t.profile.syncing : t.profile.syncToCloud}</span>
+          </button>
+
           <button
             onClick={handleShare}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-neutral-200 glass hover:bg-white/10 transition-all cursor-pointer active:scale-95 shadow-sm"
           >
             <Share2 className="size-3.5" />
-            <span>Поделиться</span>
+            <span>{t.common.share}</span>
           </button>
 
           <button
@@ -136,16 +190,16 @@ export const ProfileView: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 shadow-md shadow-violet-600/30 transition-all cursor-pointer active:scale-95"
           >
             <Edit3 className="size-3.5" />
-            <span>Редактировать профиль</span>
+            <span>{t.profile.editProfile}</span>
           </button>
 
           <button
             onClick={logoutUser}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-rose-300 glass hover:bg-rose-500/10 hover:border-rose-500/30 transition-all cursor-pointer active:scale-95"
-            title="Выйти из аккаунта"
+            title={t.profile.logout}
           >
             <LogOut className="size-3.5 text-rose-400" />
-            <span>Выйти</span>
+            <span>{t.profile.logout}</span>
           </button>
         </div>
       </div>
@@ -201,12 +255,12 @@ export const ProfileView: React.FC = () => {
                 <span>•</span>
                 <span className="text-neutral-400 truncate max-w-[180px]">{currentUser.email}</span>
                 <span>•</span>
-                <span className="text-emerald-400 font-medium">Облако Firebase ✓</span>
+                <span className="text-emerald-400 font-medium">{t.profile.cloudBadge('habit-b2d0a')}</span>
               </div>
 
               {/* Bio (Desktop Only) */}
               <p className="hidden sm:block text-xs sm:text-sm text-neutral-300 mt-2.5 max-w-xl leading-relaxed">
-                Синхронизировано с личным аккаунтом Firebase. Стрик и прогресс надежно сохранены в облаке.
+                {t.profile.cloudBio('habit-b2d0a')}
               </p>
             </div>
           </div>
@@ -215,12 +269,12 @@ export const ProfileView: React.FC = () => {
           <div className="flex sm:flex-col items-center sm:items-end gap-2 w-full sm:w-auto pt-2 sm:pt-0 border-t border-white/5 sm:border-0">
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-300 text-xs font-semibold shadow-sm">
               <span>⚡</span>
-              <span>Уровень {level}</span>
+              <span>{t.profile.level(level)}</span>
             </div>
 
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-300 text-xs font-semibold shadow-sm">
               <Flame className="size-3.5 text-amber-400" />
-              <span>{streak} дней подряд</span>
+              <span>{t.profile.streakCounter(streak)}</span>
             </div>
           </div>
         </div>
@@ -243,16 +297,16 @@ export const ProfileView: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl sm:text-3xl font-black text-white">{streak}</span>
-                <span className="text-xs sm:text-sm font-semibold text-neutral-300">дней подряд</span>
+                <span className="text-xs sm:text-sm font-semibold text-neutral-300">{t.profile.streakCounter(streak).replace(/^\d+\s*/, '')}</span>
               </div>
               <p className="text-xs text-neutral-400">
-                Личный рекорд — <span className="text-neutral-200 font-semibold">{maxStreak} дней</span>
+                {t.profile.personalBest(maxStreak)}
               </p>
             </div>
           </div>
 
           <p className="text-xs text-neutral-400 italic mt-4 pt-4 border-t border-white/5 leading-relaxed">
-            «Дисциплина — это решение делать то, чего не хочется, чтобы достичь того, о чём мечтаешь.»
+            {t.profile.disciplineQuote}
           </p>
         </div>
 
@@ -261,10 +315,10 @@ export const ProfileView: React.FC = () => {
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-300 text-xs font-bold">
-                <span>⚡ Уровень {level}</span>
+                <span>⚡ {t.profile.level(level)}</span>
               </div>
               <span className="text-xs text-neutral-400 font-mono">
-                {totalXp} XP всего
+                {t.profile.xpTotal(totalXp)}
               </span>
             </div>
 
@@ -278,55 +332,55 @@ export const ProfileView: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between text-[11px] sm:text-xs text-neutral-400 font-mono">
-                <span>{xpCurrent} / {xpNeeded} XP</span>
-                <span>Осталось {xpRemaining} XP</span>
+                <span>{t.profile.xpProgress(xpCurrent, xpNeeded)}</span>
+                <span>{t.profile.xpRemaining(xpRemaining)}</span>
               </div>
             </div>
           </div>
 
           <p className="text-xs text-neutral-400 mt-4 pt-4 border-t border-white/5">
-            Выполняйте привычки и задачи, чтобы получать +10...+50 XP за отметку.
+            {t.profile.xpHint}
           </p>
         </div>
       </div>
 
       {/* ══════ Section: Статистика (4 Cards) ══════ */}
       <div className="space-y-2.5 sm:space-y-3">
-        <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 px-1">Статистика</h3>
+        <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400 px-1">{t.profile.statsTitle}</h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Stat 1 */}
           <div className="glass p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-xs text-neutral-400">Активных привычек</span>
+            <span className="text-xs text-neutral-400">{t.profile.statHabitsActive}</span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-2xl sm:text-3xl font-black text-white">{habits.length}</span>
-              <span className="text-[11px] font-bold text-emerald-400">в трекере</span>
+              <span className="text-[11px] font-bold text-emerald-400">{t.profile.statHabitsInTracker}</span>
             </div>
           </div>
 
           {/* Stat 2 */}
           <div className="glass p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-xs text-neutral-400">Выполнение за месяц</span>
+            <span className="text-xs text-neutral-400">{t.profile.statMonthCompletion}</span>
             <div className="flex items-baseline gap-2 mt-2">
               <span className="text-2xl sm:text-3xl font-black text-white">{completionPercent}%</span>
-              <span className="text-[11px] font-bold text-emerald-400">от плана</span>
+              <span className="text-[11px] font-bold text-emerald-400">{t.profile.statMonthOfPlan}</span>
             </div>
           </div>
 
           {/* Stat 3 */}
           <div className="glass p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-xs text-neutral-400">Лучший день недели</span>
+            <span className="text-xs text-neutral-400">{t.profile.statBestDay}</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl sm:text-3xl font-black text-white">Пт</span>
-              <span className="text-[11px] font-medium text-neutral-400">продуктивно</span>
+              <span className="text-2xl sm:text-3xl font-black text-white">{bestDayLabel}</span>
+              <span className="text-[11px] font-medium text-neutral-400">{t.profile.statBestDayLabel}</span>
             </div>
           </div>
 
           {/* Stat 4 */}
           <div className="glass p-4 sm:p-5 rounded-2xl flex flex-col justify-between">
-            <span className="text-xs text-neutral-400">Среднее время в день</span>
+            <span className="text-xs text-neutral-400">{t.profile.statAvgTime}</span>
             <div className="flex items-baseline gap-2 mt-2">
-              <span className="text-2xl sm:text-3xl font-black text-white">6 мин</span>
-              <span className="text-[11px] font-medium text-neutral-400">в приложении</span>
+              <span className="text-2xl sm:text-3xl font-black text-white">{totalCompletions}</span>
+              <span className="text-[11px] font-medium text-neutral-400">{t.profile.statAvgTimeInApp}</span>
             </div>
           </div>
         </div>
@@ -335,9 +389,9 @@ export const ProfileView: React.FC = () => {
       {/* ══════ Section: Активность за неделю (Apple Fitness Capsules) ══════ */}
       <div className="glass p-5 sm:p-6 rounded-2xl space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Активность за неделю</h3>
+          <h3 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">{t.profile.weeklyActivityTitle}</h3>
           <span className="text-xs text-neutral-400">
-            Цель — {habits.length || 5} привычек в день
+            {t.profile.weeklyGoal(habits.length || 5)}
           </span>
         </div>
 
@@ -371,9 +425,12 @@ export const ProfileView: React.FC = () => {
       {/* ══════ Section: Достижения (Firebase Account Bound) ══════ */}
       <div className="space-y-2.5 sm:space-y-3">
         <div className="flex items-center justify-between px-1">
-          <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400">Достижения</h3>
+          <h3 className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-neutral-400">{t.profile.achievementsTitle}</h3>
           <span className="text-xs text-violet-400 font-mono">
-            {DEFAULT_ACHIEVEMENTS_CONFIG.filter(a => gamification?.achievements?.[a.id]?.unlocked).length} из {DEFAULT_ACHIEVEMENTS_CONFIG.length} открыто
+            {t.profile.achievementsUnlockedCount(
+              DEFAULT_ACHIEVEMENTS_CONFIG.filter(a => gamification?.achievements?.[a.id]?.unlocked).length,
+              DEFAULT_ACHIEVEMENTS_CONFIG.length
+            )}
           </span>
         </div>
 
@@ -400,7 +457,7 @@ export const ProfileView: React.FC = () => {
                   {ach.title}
                 </span>
                 <span className="text-[9px] sm:text-[10px] text-neutral-500 font-mono">
-                  {isUnlocked ? 'Получено' : `${currentProgress} / ${ach.maxProgress}`}
+                  {isUnlocked ? t.profile.achievementReceived : `${currentProgress} / ${ach.maxProgress}`}
                 </span>
               </div>
             )

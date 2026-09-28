@@ -27,14 +27,14 @@ import {
 
 // Firebase project configuration from project database
 export const firebaseConfig = {
-  apiKey: "AIzaSyABl4E43IjDiKBtP1ABn0yP_3S1Ijb0BSY",
-  authDomain: "liferpg-1eb8c.firebaseapp.com",
-  databaseURL: "https://liferpg-1eb8c-default-rtdb.firebaseio.com",
-  projectId: "liferpg-1eb8c",
-  storageBucket: "liferpg-1eb8c.firebasestorage.app",
-  messagingSenderId: "1080983950861",
-  appId: "1:1080983950861:web:16503949bbdfaef7222744",
-  measurementId: "G-PT0MGMDWRR"
+  apiKey: "AIzaSyDgQcYtqcEY5F5s9a2dr9V-igvXsz4JgZU",
+  authDomain: "habit-b2d0a.firebaseapp.com",
+  databaseURL: "https://habit-b2d0a-default-rtdb.firebaseio.com",
+  projectId: "habit-b2d0a",
+  storageBucket: "habit-b2d0a.firebasestorage.app",
+  messagingSenderId: "102979641225",
+  appId: "1:102979641225:web:38484c9306f6d3aeb28b58",
+  measurementId: "G-VLB18BZNBR"
 }
 
 // Initialize Firebase singleton

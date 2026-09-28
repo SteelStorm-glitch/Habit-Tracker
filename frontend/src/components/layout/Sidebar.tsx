@@ -1,23 +1,26 @@
 import React from 'react'
-import { Calendar, CheckSquare, PieChart, Terminal, Flame, Sparkles, Settings, HelpCircle, Star, User } from 'lucide-react'
+import {
+  Flame,
+  CheckSquare,
+  Sparkles,
+  Settings,
+  HelpCircle,
+  User,
+  Wallet
+} from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useHabitStore } from '@/context/HabitContext'
+import { VerticalMenuItem, VerticalTooltip } from '@/components/ui/skiper-ui/skiper98'
+import { useTranslation } from '@/locales'
 
-type TabId = 'habits' | 'tasks' | 'finance' | 'developer' | 'profile'
+type NavTabType = 'habits' | 'tasks' | 'finance' | 'developer' | 'profile'
 
 interface NavItem {
-  id: TabId
-  icon: React.ElementType
+  id: NavTabType
   label: string
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
   color: string
-  devOnly?: boolean
 }
-
-const NAV_ITEMS: NavItem[] = [
-  { id: 'habits', icon: Calendar, label: 'Привычки', color: '#818cf8' },
-  { id: 'tasks', icon: CheckSquare, label: 'Задачи', color: '#60a5fa' },
-  { id: 'finance', icon: PieChart, label: 'Финансы', color: '#34d399' },
-  { id: 'developer', icon: Terminal, label: 'Dev', color: '#fbbf24', devOnly: true },
-]
 
 export const Sidebar: React.FC = () => {
   const {
@@ -27,234 +30,284 @@ export const Sidebar: React.FC = () => {
     setIsAiDrawerOpen,
     setIsTourOpen,
     setTourStep,
-    isDevModeUnlocked,
-    gamification,
     currentUser,
+    gamification,
     setIsAuthModalOpen
   } = useHabitStore()
 
-  const visibleItems = NAV_ITEMS.filter(item => !item.devOnly || isDevModeUnlocked)
+  const { t } = useTranslation()
+
+  // Base navigation items
+  const navItems: NavItem[] = [
+    {
+      id: 'habits',
+      label: t.nav.habits,
+      icon: Flame,
+      color: '#6366f1' // indigo
+    },
+    {
+      id: 'tasks',
+      label: t.nav.tasks,
+      icon: CheckSquare,
+      color: '#10b981' // emerald
+    },
+    {
+      id: 'finance',
+      label: t.nav.finance,
+      icon: Wallet,
+      color: '#f59e0b' // amber
+    }
+  ]
+
+  const visibleItems = navItems
 
   return (
     <>
-      {/* ══════ Desktop Sidebar ══════ */}
-      <aside className="hidden md:flex fixed left-4 top-1/2 -translate-y-1/2 z-50 flex-col items-center gap-3 py-5 px-2 rounded-[2rem] glass-sidebar animate-slide-right">
+      {/* ══════ Desktop Left Sidebar (Skiper98 Vertical Tooltip Menu) ══════ */}
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-16 glass-sidebar flex-col items-center py-5 z-40 border-r border-white/5 gap-3 select-none">
         {/* Brand logo */}
-        <button
-          onClick={() => setActiveTab('habits')}
-          className="size-10 rounded-xl bg-indigo-600/80 backdrop-blur-sm flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-transform cursor-pointer mb-1"
-          title="Habit Tracker"
+        <motion.div
+          whileHover={{ scale: 1.15, rotate: [0, -10, 10, 0] }}
+          transition={{ type: "spring", stiffness: 400, damping: 20 }}
+          className="size-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 mb-2 cursor-pointer border border-white/10"
         >
-          <Star className="size-5 stroke-[2.5]" />
-        </button>
+          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2C9.5 6 7 8.5 7 13a5 5 0 0 0 10 0c0-2-1-4-2-5-.5 2-2 3-3 3 0-3 1.5-6 0-9z"
+              fill="currentColor"
+            />
+          </svg>
+        </motion.div>
 
         {/* Streak fire (Account bound) */}
         {currentUser && gamification && gamification.streakDays > 0 ? (
-          <button
-            onClick={() => setActiveTab('profile')}
-            className="flex flex-col items-center gap-0.5 mb-1 cursor-pointer hover:scale-110 transition-transform"
-            title={`Стрик: ${gamification.streakDays} дн. (Аккаунт: ${currentUser.displayName || currentUser.email})`}
+          <VerticalTooltip
+            label={t.nav.streakTooltip(gamification.streakDays)}
+            color="#fbbf24"
+            badge={t.nav.streakActive}
           >
-            <div className="animate-streak-fire">
-              <Flame className="size-5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
-            </div>
-            <span className="text-[10px] font-bold text-amber-300 font-mono">{gamification.streakDays}</span>
-          </button>
+            <motion.button
+              onClick={() => setActiveTab('profile')}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              className="flex flex-col items-center gap-0.5 mb-1 cursor-pointer"
+            >
+              <div className="animate-streak-fire">
+                <Flame className="size-5 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+              </div>
+              <span className="text-[10px] font-bold text-amber-300 font-mono">{gamification.streakDays}</span>
+            </motion.button>
+          </VerticalTooltip>
         ) : (
-          <button
-            onClick={() => setIsAuthModalOpen(true)}
-            className="flex flex-col items-center gap-0.5 mb-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
-            title="Войдите в аккаунт, чтобы включить стрик"
+          <VerticalTooltip
+            label={t.nav.streakGuestTooltip}
+            color="#9ca3af"
           >
-            <Flame className="size-4 text-zinc-500" />
-            <span className="text-[9px] text-zinc-500 font-mono">—</span>
-          </button>
+            <motion.button
+              onClick={() => setIsAuthModalOpen(true)}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="flex flex-col items-center gap-0.5 mb-1 cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+            >
+              <Flame className="size-4 text-zinc-500" />
+              <span className="text-[9px] text-zinc-500 font-mono">—</span>
+            </motion.button>
+          </VerticalTooltip>
         )}
 
         {/* Divider */}
         <div className="w-6 h-px bg-white/10 rounded-full" />
 
-        {/* Navigation tabs */}
-        <nav className="flex flex-col items-center gap-1.5">
-          {visibleItems.map(item => {
-            const Icon = item.icon
-            const isActive = activeTab === item.id
-            return (
-              <button
-                key={item.id}
-                id={`navTab-${item.id}`}
-                data-tab={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`relative size-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer group ${
-                  isActive
-                    ? 'bg-white/10 shadow-lg'
-                    : 'hover:bg-white/5'
-                }`}
-                style={isActive ? { boxShadow: `0 0 20px ${item.color}25, inset 0 1px 0 rgba(255,255,255,0.1)` } : {}}
-                title={item.label}
-              >
-                <Icon
-                  className="size-[18px] transition-colors duration-200"
-                  style={{ color: isActive ? item.color : '#9ca3af' }}
-                />
-                {isActive && (
-                  <div
-                    className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full"
-                    style={{ backgroundColor: item.color }}
-                  />
-                )}
-                {/* Tooltip */}
-                <div className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-neutral-900/95 border border-white/10 text-[11px] font-medium text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 backdrop-blur-sm shadow-xl">
-                  {item.label}
-                </div>
-              </button>
-            )
-          })}
+        {/* Navigation tabs (Skiper98 Component) */}
+        <nav className="flex flex-col items-center gap-2">
+          {visibleItems.map(item => (
+            <VerticalMenuItem
+              key={item.id}
+              id={`navTab-${item.id}`}
+              label={item.label}
+              icon={item.icon}
+              isActive={activeTab === item.id}
+              color={item.color}
+              onClick={() => setActiveTab(item.id)}
+            />
+          ))}
         </nav>
 
         {/* Divider */}
         <div className="w-6 h-px bg-white/10 rounded-full" />
 
         {/* AI Button */}
-        <button
-          id="btnSidebarAi"
-          onClick={() => setIsAiDrawerOpen(true)}
-          className="size-10 rounded-xl flex items-center justify-center hover:bg-indigo-500/10 transition-all cursor-pointer group relative"
-          title="AI Ассистент"
-          aria-label="AI Ассистент"
-        >
-          <Sparkles className="size-[18px] text-indigo-400 group-hover:text-indigo-300" />
-        </button>
+        <VerticalTooltip label={t.nav.aiAssistant} color="#818cf8">
+          <motion.button
+            id="btnSidebarAi"
+            onClick={() => setIsAiDrawerOpen(true)}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            className="size-10 rounded-xl flex items-center justify-center hover:bg-indigo-500/10 transition-colors cursor-pointer group relative"
+            aria-label={t.nav.aiAssistant}
+          >
+            <Sparkles className="size-[18px] text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+          </motion.button>
+        </VerticalTooltip>
 
         {/* Tour */}
-        <button
-          id="btnSidebarTour"
-          onClick={() => { setTourStep(0); setIsTourOpen(true) }}
-          className="size-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all cursor-pointer"
-          title="Интерактивный тур"
-          aria-label="Интерактивный тур"
-        >
-          <HelpCircle className="size-[18px] text-neutral-500 hover:text-neutral-300" />
-        </button>
+        <VerticalTooltip label={t.nav.tour} color="#a3a3a3">
+          <motion.button
+            id="btnSidebarTour"
+            onClick={() => { setTourStep(0); setIsTourOpen(true) }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            className="size-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer"
+            aria-label={t.nav.tour}
+          >
+            <HelpCircle className="size-[18px] text-neutral-500 hover:text-neutral-300 transition-colors" />
+          </motion.button>
+        </VerticalTooltip>
 
         {/* Bottom spacer */}
         <div className="flex-1" />
 
         {/* User Avatar / Profile Button */}
-        <button
-          id="btnSidebarUser"
-          onClick={() => setActiveTab('profile')}
-          className={`size-10 rounded-2xl flex items-center justify-center text-xs font-bold text-white transition-all cursor-pointer shadow-md active:scale-95 group relative ${
-            activeTab === 'profile'
-              ? 'bg-gradient-to-tr from-violet-600 to-fuchsia-500 shadow-[0_0_18px_rgba(139,92,246,0.6)] border border-violet-400'
-              : 'bg-white/10 hover:bg-white/15 border border-white/10'
-          }`}
-          title={currentUser ? `Профиль: ${currentUser.displayName || currentUser.email}` : 'Войти в аккаунт'}
-          aria-label="Профиль"
+        <VerticalTooltip
+          label={currentUser ? t.nav.profileTooltip(currentUser.displayName || currentUser.email) : t.nav.login}
+          color="#c084fc"
         >
-          {currentUser ? (
-            currentUser.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'US'
-          ) : (
-            <User className="size-4 text-zinc-400 group-hover:text-white" />
-          )}
-          {activeTab === 'profile' && (
-            <div className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-violet-400" />
-          )}
-          {/* Tooltip */}
-          <div className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-neutral-900/95 border border-white/10 text-[11px] font-medium text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 backdrop-blur-sm shadow-xl z-50">
-            {currentUser ? 'Профиль' : 'Войти в аккаунт'}
-          </div>
-        </button>
+          <motion.button
+            id="btnSidebarUser"
+            onClick={() => setActiveTab('profile')}
+            whileHover={{ scale: 1.12 }}
+            whileTap={{ scale: 0.92 }}
+            className={`size-10 rounded-2xl flex items-center justify-center text-xs font-bold text-white transition-all cursor-pointer shadow-md group relative ${
+              activeTab === 'profile'
+                ? 'bg-gradient-to-tr from-violet-600 to-fuchsia-500 shadow-[0_0_18px_rgba(139,92,246,0.6)] border border-violet-400'
+                : 'bg-white/10 hover:bg-white/15 border border-white/10'
+            }`}
+            aria-label={t.nav.profile}
+          >
+            {currentUser ? (
+              currentUser.displayName ? currentUser.displayName.slice(0, 2).toUpperCase() : 'US'
+            ) : (
+              <User className="size-4 text-zinc-400 group-hover:text-white" />
+            )}
+            {activeTab === 'profile' && (
+              <motion.div
+                layoutId="verticalMenuPip"
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="absolute -left-2 top-1/2 -translate-y-1/2 w-1 h-5 rounded-full bg-violet-400"
+              />
+            )}
+          </motion.button>
+        </VerticalTooltip>
 
         {/* Settings */}
-        <button
-          id="btnSidebarSettings"
-          onClick={() => setIsSettingsOpen(true)}
-          className="size-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-all cursor-pointer"
-          title="Настройки"
-          aria-label="Настройки"
-        >
-          <Settings className="size-[18px] text-neutral-500 hover:text-neutral-300 transition-colors" />
-        </button>
+        <VerticalTooltip label={t.nav.settings} color="#d4d4d8">
+          <motion.button
+            id="btnSidebarSettings"
+            onClick={() => setIsSettingsOpen(true)}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            className="size-10 rounded-xl flex items-center justify-center hover:bg-white/5 transition-colors cursor-pointer"
+            aria-label={t.nav.settings}
+          >
+            <Settings className="size-[18px] text-neutral-500 hover:text-neutral-300 transition-colors" />
+          </motion.button>
+        </VerticalTooltip>
       </aside>
 
-      {/* ══════ Mobile Bottom Bar ══════ */}
+      {/* ══════ Mobile Bottom Bar (Tactile Spring Physics) ══════ */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-sidebar border-t border-white/5 px-2 py-1.5 flex items-center justify-around safe-area-pb animate-slide-up">
         {/* Streak */}
         {gamification && gamification.streakDays > 0 && (
-          <div className="flex flex-col items-center gap-0.5">
+          <motion.div
+            whileTap={{ scale: 0.88 }}
+            className="flex flex-col items-center gap-0.5"
+          >
             <Flame className="size-4 text-amber-400" />
             <span className="text-[9px] font-bold text-amber-300">{gamification.streakDays}</span>
-          </div>
+          </motion.div>
         )}
 
         {visibleItems.map(item => {
           const Icon = item.icon
           const isActive = activeTab === item.id
           return (
-            <button
+            <motion.button
               key={item.id}
               id={`navTabMobile-${item.id}`}
               data-tab={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-                isActive ? 'bg-white/8' : ''
-              }`}
+              whileTap={{ scale: 0.88 }}
+              className="relative flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer"
             >
+              {isActive && (
+                <motion.div
+                  layoutId="mobileActiveTab"
+                  transition={{ type: "spring", stiffness: 450, damping: 30 }}
+                  className="absolute inset-0 rounded-xl bg-white/10 border border-white/10 shadow-[0_0_12px_rgba(168,85,247,0.3)]"
+                />
+              )}
               <Icon
-                className="size-5 transition-colors"
+                className="size-5 transition-colors relative z-10"
                 style={{ color: isActive ? item.color : '#6b7280' }}
               />
               <span
-                className="text-[9px] font-medium transition-colors"
+                className="text-[9px] font-medium transition-colors relative z-10"
                 style={{ color: isActive ? item.color : '#6b7280' }}
               >
                 {item.label}
               </span>
-            </button>
+            </motion.button>
           )
         })}
 
         {/* AI on mobile */}
-        <button
+        <motion.button
           id="btnMobileAi"
           onClick={() => setIsAiDrawerOpen(true)}
+          whileTap={{ scale: 0.88 }}
           className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl cursor-pointer"
         >
           <Sparkles className="size-5 text-indigo-400" />
           <span className="text-[9px] font-medium text-indigo-400">AI</span>
-        </button>
+        </motion.button>
 
         {/* Profile on mobile */}
-        <button
+        <motion.button
           id="navTabMobile-profile"
           data-tab="profile"
           onClick={() => setActiveTab('profile')}
-          className={`flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'profile' ? 'bg-white/8' : ''
-          }`}
+          whileTap={{ scale: 0.88 }}
+          className="relative flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl transition-all cursor-pointer"
         >
+          {activeTab === 'profile' && (
+            <motion.div
+              layoutId="mobileActiveTab"
+              transition={{ type: "spring", stiffness: 450, damping: 30 }}
+              className="absolute inset-0 rounded-xl bg-white/10 border border-white/10 shadow-[0_0_12px_rgba(192,132,252,0.3)]"
+            />
+          )}
           <User
-            className="size-5 transition-colors"
+            className="size-5 transition-colors relative z-10"
             style={{ color: activeTab === 'profile' ? '#c084fc' : '#6b7280' }}
           />
           <span
-            className="text-[9px] font-medium transition-colors"
+            className="text-[9px] font-medium transition-colors relative z-10"
             style={{ color: activeTab === 'profile' ? '#c084fc' : '#6b7280' }}
           >
-            Профиль
+            {t.nav.profile}
           </span>
-        </button>
+        </motion.button>
 
         {/* Settings on mobile */}
-        <button
+        <motion.button
           id="btnMobileSettings"
           onClick={() => setIsSettingsOpen(true)}
+          whileTap={{ scale: 0.88 }}
           className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl cursor-pointer"
         >
           <Settings className="size-5 text-neutral-500" />
-          <span className="text-[9px] font-medium text-neutral-500">Ещё</span>
-        </button>
+          <span className="text-[9px] font-medium text-neutral-500">{t.nav.settings}</span>
+        </motion.button>
       </nav>
     </>
   )

@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/dialog'
 import { CheckSquare, Calendar, Flag, Tag, AlignLeft } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106'
 
 export const TaskModal: React.FC = () => {
   const { isAddTaskOpen, setIsAddTaskOpen, addTask, getSimulatedNow } = useHabitStore()
@@ -75,7 +76,7 @@ export const TaskModal: React.FC = () => {
           {/* Title */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-neutral-300">Название задачи</label>
-            <input
+            <SmoothInput
               type="text"
               required
               autoFocus

@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Plus, Minus, Briefcase, Laptop, Gift, TrendingUp, Box, ShoppingBag, Car, Home, Gamepad2, Lightbulb, Pill, BookOpen } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { SmoothInput } from '@/components/ui/skiper-ui/skiper106'
 
 export const TransactionModals: React.FC = () => {
   const {
@@ -122,7 +123,7 @@ export const TransactionModals: React.FC = () => {
                   <span>+</span>
                   <span>₽</span>
                 </div>
-                <input
+                <SmoothInput
                   type="number"
                   step="any"
                   value={incomeAmount}
@@ -130,6 +131,7 @@ export const TransactionModals: React.FC = () => {
                   placeholder="0"
                   autoFocus
                   className="w-full bg-transparent text-2xl font-bold text-white placeholder:text-neutral-600 focus:outline-hidden"
+                  caretClassName="bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.85)]"
                 />
               </div>
             </div>
@@ -163,7 +165,7 @@ export const TransactionModals: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-neutral-400 font-medium">Заметка</label>
-                <input
+                <SmoothInput
                   type="text"
                   value={incomeNote}
                   onChange={(e) => setIncomeNote(e.target.value)}
@@ -225,7 +227,7 @@ export const TransactionModals: React.FC = () => {
                   <span>−</span>
                   <span>₽</span>
                 </div>
-                <input
+                <SmoothInput
                   type="number"
                   step="any"
                   value={expenseAmount}
@@ -233,6 +235,7 @@ export const TransactionModals: React.FC = () => {
                   placeholder="0"
                   autoFocus
                   className="w-full bg-transparent text-2xl font-bold text-white placeholder:text-neutral-600 focus:outline-hidden"
+                  caretClassName="bg-rose-400 shadow-[0_0_10px_rgba(244,63,94,0.85)]"
                 />
               </div>
             </div>
@@ -266,7 +269,7 @@ export const TransactionModals: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <label className="text-xs text-neutral-400 font-medium">Заметка</label>
-                <input
+                <SmoothInput
                   type="text"
                   value={expenseNote}
                   onChange={(e) => setExpenseNote(e.target.value)}
