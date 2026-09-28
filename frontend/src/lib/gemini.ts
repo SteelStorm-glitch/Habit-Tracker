@@ -5,11 +5,49 @@
 export const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite'
 
-// Fallback cascade: reliable gemma first, then high-end gemini models
-const MODEL_CASCADE = [
-  'gemma-4-26b-a4b-it',
+export interface ModelOption {
+  id: string
+  name: string
+  badge: string
+  description: string
+  isFlagship?: boolean
+}
+
+export const AVAILABLE_MODELS: ModelOption[] = [
+  {
+    id: 'gemini-3.5-flash-lite',
+    name: 'Gemini 3.5 Flash-Lite',
+    badge: 'Быстрая',
+    description: 'Ультра-быстрые советы и микро-задачи',
+  },
+  {
+    id: 'gemini-3.8-flash',
+    name: 'Gemini 3.8 Flash',
+    badge: 'Флагман 3.8',
+    description: 'Новейшая флагманская Flash-модель Google',
+    isFlagship: true,
+  },
+  {
+    id: 'gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro',
+    badge: 'Pro Анализ',
+    description: 'Глубокий анализ дисциплины и сложных планов',
+    isFlagship: true,
+  },
+  {
+    id: 'gemma-4-26b-a4b-it',
+    name: 'Gemma 4 26B (Безотказная)',
+    badge: 'Авто-резерв',
+    description: 'Работает всегда, даже при перегрузке серверов Google',
+  },
+]
+
+// Fallback cascade when a model encounters 503/429/404
+const BASE_FALLBACK_CASCADE = [
   'gemini-3.8-flash',
   'gemini-3.5-flash-lite',
+  'gemini-3.1-pro-preview',
+  'gemma-4-26b-a4b-it',
   'gemini-3.6-flash',
   'gemini-flash-lite-latest',
 ]
@@ -59,8 +97,9 @@ function buildSystemInstruction(context?: GeminiContext): string {
 export async function generateGeminiResponse(
   userPrompt: string,
   context?: GeminiContext,
-  history?: { role: 'user' | 'model'; text: string }[]
-): Promise<{ text: string; modelUsed: string }> {
+  history?: { role: 'user' | 'model'; text: string }[],
+  preferredModel?: string
+): Promise<{ text: string; modelUsed: string; fallbackOccurred?: boolean }> {
   const systemInstruction = buildSystemInstruction(context)
 
   // Construct conversation contents (must start with 'user' role for Gemini API)
@@ -83,9 +122,21 @@ export async function generateGeminiResponse(
     parts: [{ text: userPrompt }],
   })
 
+  // Start with preferred model, then follow with other fallback models in cascade
+  const modelsToTry: string[] = []
+  if (preferredModel) {
+    modelsToTry.push(preferredModel)
+  }
+  for (const m of BASE_FALLBACK_CASCADE) {
+    if (!modelsToTry.includes(m)) {
+      modelsToTry.push(m)
+    }
+  }
+
   let lastError: Error | null = null
 
-  for (const model of MODEL_CASCADE) {
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const model = modelsToTry[i]
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`
 
     try {
@@ -113,6 +164,7 @@ export async function generateGeminiResponse(
           return {
             text: answerPart.text.trim(),
             modelUsed: model,
+            fallbackOccurred: preferredModel ? model !== preferredModel : i > 0,
           }
         }
       }

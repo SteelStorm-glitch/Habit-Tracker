@@ -363,7 +363,7 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           ...DEFAULT_AI_SETTINGS,
           ...parsed,
           provider: 'gemini',
-          model: 'gemini-3.5-flash-lite',
+          model: parsed.model || DEFAULT_AI_SETTINGS.model,
           apiKey: DEFAULT_AI_SETTINGS.apiKey
         }
       }
@@ -945,12 +945,18 @@ export const HabitProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           pendingTasksCount: tasks.filter(t => !t.completed).length,
           balance: inc - exp
         },
-        history
+        history,
+        aiSettings.model
       )
+
+      let replyText = result.text
+      if (result.fallbackOccurred && result.modelUsed) {
+        replyText += `\n\n⚡ _(Отвечено через резервную модель ${result.modelUsed}, так как выбранная была временно перегружена)_`
+      }
 
       const botMsg: AiMessage = {
         id: `msg-${Date.now() + 1}`,
-        text: result.text,
+        text: replyText,
         sender: 'bot',
         timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
       }

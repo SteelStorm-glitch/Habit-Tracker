@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Sheet,
@@ -11,9 +11,15 @@ import {
   Bot, 
   User, 
   CheckCircle2, 
-  TrendingUp 
+  TrendingUp,
+  ChevronDown,
+  Check,
+  Zap,
+  Crown,
+  ShieldCheck
 } from 'lucide-react'
 import { useHabitStore } from '@/context/HabitContext'
+import { AVAILABLE_MODELS } from '@/lib/gemini'
 import { 
   Skiper83ChatComposer, 
   InteractiveMentionCard, 
@@ -30,17 +36,43 @@ export const AiDrawer: React.FC = () => {
     aiMessages, 
     sendAiMessage, 
     generateAiTask, 
-    isAiThinking
+    isAiThinking,
+    aiSettings,
+    updateAiSettings
   } = useHabitStore()
 
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const currentModelOption = AVAILABLE_MODELS.find(m => m.id === aiSettings.model) || AVAILABLE_MODELS[0]
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [aiMessages, isAiThinking])
 
+  // Close model menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsModelMenuOpen(false)
+      }
+    }
+    if (isModelMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isModelMenuOpen])
+
   const handleQuickPrompt = (prompt: string) => {
     sendAiMessage(prompt)
+  }
+
+  const handleSelectModel = (modelId: string) => {
+    updateAiSettings({ model: modelId })
+    setIsModelMenuOpen(false)
   }
 
   return (
@@ -49,20 +81,92 @@ export const AiDrawer: React.FC = () => {
         side="right"
         className="w-full sm:max-w-md bg-[#0e0f14]/90 backdrop-blur-2xl border-l border-white/10 text-neutral-100 p-0 flex flex-col h-full overflow-hidden shadow-2xl"
       >
-        {/* Header */}
-        <SheetHeader className="px-5 py-4 border-b border-white/10 flex flex-row items-center justify-between bg-white/[0.02]">
+        {/* Header with Interactive Model Selector */}
+        <SheetHeader className="px-5 py-3.5 border-b border-white/10 flex flex-row items-center justify-between bg-white/[0.02] relative z-20">
           <div className="flex items-center gap-2.5">
-            <div className="size-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.35)]">
+            <div className="size-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-600/30 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-[0_0_12px_rgba(99,102,241,0.35)] shrink-0">
               <Sparkles className="size-4 animate-pulse" />
             </div>
             <div>
-              <SheetTitle className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-                <span>AI Советник</span>
-                <span className="inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 font-mono border border-indigo-500/30">
-                  <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Gemini 3.5 Flash-Lite</span>
-                </span>
-              </SheetTitle>
+              <div className="flex items-center gap-2">
+                <SheetTitle className="text-base font-bold text-white tracking-tight">
+                  AI Советник
+                </SheetTitle>
+
+                {/* Model Selector Pill / Dropdown Trigger */}
+                <div className="relative" ref={menuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsModelMenuOpen(prev => !prev)}
+                    className="inline-flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 font-mono border border-indigo-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
+                    title="Выбрать модель Gemini (или авто-резерв при ошибках Google)"
+                  >
+                    <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="font-semibold">{currentModelOption.name}</span>
+                    <ChevronDown className={`size-3 text-indigo-400 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {isModelMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute left-0 mt-2 w-72 rounded-2xl bg-[#131126]/95 border border-purple-500/30 shadow-2xl shadow-purple-950/60 backdrop-blur-2xl p-2 z-50 divide-y divide-white/5"
+                      >
+                        <div className="px-2.5 py-1.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wider flex items-center justify-between">
+                          <span>Выбор модели Gemini</span>
+                          <span className="text-[9px] text-emerald-400 lowercase font-mono">каскадный резерв</span>
+                        </div>
+
+                        <div className="py-1 space-y-1">
+                          {AVAILABLE_MODELS.map((m) => {
+                            const isSelected = m.id === currentModelOption.id
+                            return (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => handleSelectModel(m.id)}
+                                className={`w-full text-left p-2 rounded-xl transition-all flex items-start justify-between gap-2 cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-purple-600/20 border border-purple-500/40 text-white'
+                                    : 'hover:bg-white/5 text-neutral-300 border border-transparent'
+                                }`}
+                              >
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                                    {m.isFlagship && <Crown className="size-3 text-amber-400 shrink-0" />}
+                                    {m.id === 'gemma-4-26b-a4b-it' && <ShieldCheck className="size-3 text-emerald-400 shrink-0" />}
+                                    {!m.isFlagship && m.id !== 'gemma-4-26b-a4b-it' && <Zap className="size-3 text-indigo-400 shrink-0" />}
+                                    <span>{m.name}</span>
+                                    <span className="text-[9px] px-1.5 py-0.2 rounded-md bg-white/10 text-neutral-300 font-normal">
+                                      {m.badge}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-neutral-400 leading-tight">
+                                    {m.description}
+                                  </p>
+                                </div>
+                                {isSelected && (
+                                  <div className="size-4 rounded-full bg-purple-500 flex items-center justify-center shrink-0 mt-0.5">
+                                    <Check className="size-2.5 text-white stroke-[3]" />
+                                  </div>
+                                )}
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        <div className="px-2.5 pt-2 pb-1 text-[10px] text-neutral-400 leading-snug">
+                          💡 <span className="text-neutral-300">Авто-резерв:</span> если выбранная модель столкнётся с 503/429 на серверах Google, система мгновенно ответит через резервную модель.
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
               <div className="text-[11px] text-neutral-400">Персональный анализ привычек и дисциплины</div>
             </div>
           </div>
